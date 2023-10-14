@@ -18,29 +18,32 @@ def plot_gp(mu, cov, X, X_train=None, Y_train=None, samples=[]):
     plt.legend()
 
 
-def RBF_kernel(x1, x2, l=5.0, sigma=5):
-    """Exponentiated quadratic  with σ=1"""
-    sq_norm = np.linalg.norm(x1 - x2) ** 2
-    return sigma**2 * np.exp(-sq_norm / (2 * l**2))
-
-def MoG_spectral_kernel(x1, x2, M=10, sigma=0.1, frequency=261):
-    """MoG spectral kernel"""
-    omega = 2 * np.pi * frequency
+def MoG_spectral_kernel(x1, x2, M=3,  sigma=0.1, frequencies=[440]):
+    """MoG spectral kernel
+    M is the number of partials or harmonics for each note source
+    TODO add weights k
+    TODO add variance changes across Qs and Ms
+    """
     cosine_series = 0
-    for m in range(M):
-        cosine_series += np.cos((m+1) * omega * np.linalg.norm(x1 - x2))
-    return 1/ (2 * np.pi * sigma **2) * np.exp(-(sigma**2/2) * np.linalg.norm(x1- x2)**2) * cosine_series
+    for fundamental_frequency in frequencies:    
+        for m in range(M):
+            cosine_series += np.cos((m+1) * 2 * np.pi * fundamental_frequency * np.linalg.norm(x1 - x2))
+    return (1/np.pi ) * np.exp(-(sigma**2/2) * np.linalg.norm(x1- x2)**2) * cosine_series
 
-# Create covariance matrix 
-# create_matrix(data_1, data_2, kernel ) WIP
-cov = np.zeros((100,100))
-num_rows, num_columns = np.shape(cov)
-for i in range(num_rows):
-    for j in range(num_columns):
-        cov[i,j] = MoG_spectral_kernel(i, j)
+
+def plot_cov_matrix(X, Y=None):
+    if Y is None:
+        Y = X
+    cov = np.zeros((len(X), len(Y)))
+    for i in range(len(X)):
+        for j in range(len(Y)):
+            cov[i,j] = MoG_spectral_kernel(i, j)
+    return cov
+
 
 # Mean of the prior
 X = np.linspace(-5,5,100)
+cov = plot_cov_matrix(X, X)
 mu = np.zeros(X.shape)
 
 # Plot heat map of covariance function
@@ -51,7 +54,7 @@ plt.show()
 # Draw three samples from the prior
 samples = np.random.multivariate_normal(mu.ravel(), cov, 5)
 
-# Plot GP mean, uncertainty region and samples
+# # Plot GP mean, uncertainty region and samples
 plot_gp(mu, cov, X, samples=samples)
 plt.show()
 
@@ -72,10 +75,10 @@ def posterior(X_s, X_train, Y_train,  M=10, sigma=5., frequency=265, sigma_y=1e-
     Returns:
         Posterior mean vector (n x d) and covariance matrix (n x n).
     """
-    K = MoG_spectral_kernel(X_train, X_train, M=M, sigma = sigma, frequency=frequency) + \
+    K = plot_cov_matrix(X_train, X_train) + \
         sigma_y**2 * np.eye(len(X_train))
-    K_s = MoG_spectral_kernel(X_train, X_s,M=M, sigma = sigma, frequency=frequency)
-    K_ss = MoG_spectral_kernel(X_s, X_s, M=M, sigma = sigma, frequency=frequency) + 1e-8 * np.eye(len(X_s))
+    K_s = plot_cov_matrix(X_train, X_s)
+    K_ss = plot_cov_matrix(X_s, X_s) + 1e-8 * np.eye(len(X_s))
     K_inv = inv(K)
 
     # Equation (7)
@@ -87,38 +90,38 @@ def posterior(X_s, X_train, Y_train,  M=10, sigma=5., frequency=265, sigma_y=1e-
     return mu_s, cov_s
 
 
-# # Option 1: wave file method
-# wav_file = '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/wav_files/viola_octave.wav'
-# # wav_file = create_sine_wave("Sine.wav", frequency=440)
+# Option 1: wave file method
+wav_file = '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/wav_files/Sine.wav'
+# wav_file = create_sine_wave("Sine.wav", frequency=440)
 
-# # # Read a WAV file
-# sample_rate, data = wav.read(wav_file)
+# # Read a WAV file
+sample_rate, data = wav.read(wav_file)
 
-# Y_train = data[:200].reshape(-1, 1)  # Truncate data to make manageable
+Y_train = data[:200].reshape(-1, 1)  # Truncate data to make manageable
 
-# # # Find time time length of truncated data
-# time_length = Y_train.shape[0] / sample_rate
+# # Find time time length of truncated data
+time_length = Y_train.shape[0] / sample_rate
 
-# # # Plotting the wave form in the time domain
-# X_train = np.linspace(0., 10, Y_train.shape[0]).reshape(-1, 1) # Had to change time_length to 10 inorder to see changes in kernel function
-# X = np.linspace(0, 10, 200).reshape(-1, 1) # For some reason I need to make this the same shape as the training data - need to look into this
-
-
+# # Plotting the wave form in the time domain
+X_train = np.linspace(0., 10, Y_train.shape[0]).reshape(-1, 1) # Had to change time_length to 10 inorder to see changes in kernel function
+X = np.linspace(0, 10, 200).reshape(-1, 1) # For some reason I need to make this the same shape as the training data - need to look into this
 
 
-# noise = 0.4
-
-# # # Option 2: Automatically generated noisy data
-
-# # X_train = np.linspace(-5, 5, 100).reshape(-1, 1)
-# # Y_train = np.sin(X_train) + noise * np.random.randn(*X_train.shape)
-# # X = np.linspace(-5,5,100).reshape(-1,1)
 
 
-# # Compute mean and covariance of the posterior distribution
+noise = 0.4
 
-# mu_s, cov_s = posterior(X, X_train, Y_train, sigma = 3, sigma_y=noise, M=20, frequency = 4400)
+# Option 2: Automatically generated noisy data
 
-# samples = np.random.multivariate_normal(mu_s.ravel(), cov_s, 3)
-# plot_gp(mu_s, cov_s, X, X_train=X_train, Y_train=Y_train, samples=samples)
-# plt.show()
+# X_train = np.linspace(-5, 5, 50).reshape(-1, 1)
+# Y_train = np.sin(X_train) + noise * np.random.randn(*X_train.shape)
+# X = np.linspace(-5,5,60).reshape(-1,1)
+
+
+# Compute mean and covariance of the posterior distribution
+
+mu_s, cov_s = posterior(X, X_train, Y_train, sigma = 3, sigma_y=noise, M=20, frequency = 4400)
+
+samples = np.random.multivariate_normal(mu_s.ravel(), cov_s, 3)
+plot_gp(mu_s, cov_s, X, X_train=X_train, Y_train=Y_train, samples=samples)
+plt.show()
