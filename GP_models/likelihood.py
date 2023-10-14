@@ -6,6 +6,9 @@ from numpy.linalg import cholesky, det
 from scipy.linalg import solve_triangular
 from scipy.optimize import minimize
 import scipy.io.wavfile as wav
+import GP_models.GPy_likelihood as GPy_likelihood
+
+
 
 def kernel(X1, X2, l=1.0, sigma_f=1.0):
     """
@@ -20,6 +23,13 @@ def kernel(X1, X2, l=1.0, sigma_f=1.0):
     """
     sqdist = np.sum(X1**2, 1).reshape(-1, 1) + np.sum(X2**2, 1) - 2 * np.dot(X1, X2.T)
     return sigma_f**2 * np.exp((-0.5 / l**2) * sqdist)
+
+# def periodic_kernel(X1, X2, l=1.0, sigma_f=1.0, frequency=440): WIP
+#     """
+#     Periodic kernel
+#     """
+#     base =  np.pi * (X1[:, None, :] - X2[None, :, :]) * frequency
+#     return np.square(sigma_f)  * np.exp( -2* np.sum( np.square(  np.sin( base ) / l ), axis = -1 ) )
 
 # Finite number of points
 X = np.arange(-5, 5, 0.2).reshape(-1, 1)
