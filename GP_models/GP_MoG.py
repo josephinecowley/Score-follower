@@ -2,7 +2,6 @@ from numpy.linalg import inv
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.io.wavfile as wav
-
 from scipy.optimize import minimize
 from scipy.linalg import solve_triangular
 from numpy.linalg import cholesky, det
@@ -22,7 +21,7 @@ def plot_gp(mu, cov, X, X_train=None, Y_train=None, samples=[]):
     plt.legend()
 
 
-def MoG_spectral_kernel(x1, x2, M=3,  sigma=0.1, frequencies=[440]):
+def MoG_spectral_kernel(x1, x2, M=3,  sigma=0.1, frequencies=[4, 5]):
     """MoG spectral kernel
     M is the number of partials or harmonics for each note source
     TODO add weights k
@@ -35,7 +34,7 @@ def MoG_spectral_kernel(x1, x2, M=3,  sigma=0.1, frequencies=[440]):
     return (1/np.pi ) * np.exp(-(sigma**2/2) * np.linalg.norm(x1- x2)**2) * cosine_series
 
 
-def plot_cov_matrix(X, Y=None, M=3,  sigma=0.1, frequencies=[40]):
+def plot_cov_matrix(X, Y=None, M=1,  sigma=0.1, frequencies=[80]):
     if Y is None:
         Y = X
     cov = np.zeros((len(X), len(Y)))
@@ -63,7 +62,7 @@ plot_gp(mu, cov, X, samples=samples)
 plt.show()
 
 
-def posterior(X_s, X_train, Y_train, M=3, sigma=0.1,  sigma_y=1e-8): 
+def posterior(X_s, X_train, Y_train, M=1, sigma=0.1,  sigma_y=1e-8): 
     """
     Computes the suffifient statistics of the posterior distribution 
     from m training data X_train and Y_train and n new inputs X_s.
@@ -101,7 +100,7 @@ wav_file = '/Users/josephine/Documents/Engineering /Part IIB/Score alignment pro
 # # Read a WAV file
 sample_rate, data = wav.read(wav_file)
 
-Y_train = data[:200].reshape(-1, 1)  # Truncate data to make manageable
+Y_train = data[:100].reshape(-1, 1)  # Truncate data to make manageable
 
 # # Find time time length of truncated data
 time_length = Y_train.shape[0] / sample_rate
@@ -109,9 +108,6 @@ time_length = Y_train.shape[0] / sample_rate
 # # Plotting the wave form in the time domain
 X_train = np.linspace(0., time_length, Y_train.shape[0]).reshape(-1, 1) # Had to change time_length to 10 inorder to see changes in kernel function
 X = np.linspace(0, time_length, 100).reshape(-1, 1) # For some reason I need to make this the same shape as the training data - need to look into this
-
-
-
 
 noise = 0.4
 
@@ -186,7 +182,7 @@ def nll_fn(X_train, Y_train, noise, naive=True):
 # We should actually run the minimization several times with different
 # initializations to avoid local minima but this is skipped here for
 # simplicity.
-res = minimize(nll_fn(X_train, Y_train, noise), [3, 0.1], 
+res = minimize(nll_fn(X_train, Y_train, noise), [1, 0.1], 
                bounds=((1e-5, None), (1e-5, None)),
                method='L-BFGS-B')
 
