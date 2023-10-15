@@ -18,26 +18,58 @@ def plot_gp(mu, cov, X, X_train=None, Y_train=None, samples=[]):
     plt.legend()
 
 
-def MoG_spectral_kernel(t1, t2, M=3, sigma=3.0, frequency=261):
+# THINK THIS DOESN"T WORK ANYMORE
+# def MoG_spectral_kernel(t1, t2, M=3, sigma=3.0, frequency=261):
+#     """
+#     Kernel with a Mixture of Gaussian frequency spectrum
+
+#     Args:
+#         t1: Array of m points (m x d).
+#         t2: Array of n points (n x d).
+
+#     Returns:
+#         (m x n) matrix."""
+
+#     omega = 2 * np.pi * frequency
+#     sum_of_cosines = 0
+
+#     sqdist = np.sum(t1**2, 1).reshape(-1, 1) + \
+#         np.sum(t2**2, 1) - 2 * np.dot(t1, t2.T)
+#     for m in range(M):
+#         sum_of_cosines += np.cos((m + 1) * omega * (t2 - t1))
+
+#     return 1/(2 * np.pi * sigma**2) * np.exp(-(sigma**2 * sqdist) / 2) * sum_of_cosines
+
+
+
+def MoG_spectral_kernel_matrix(X1, X2, M=3, sigma=0.1, frequencies=[440, 880]):
     """
-    Kernel with a Mixture of Gaussian frequency spectrum
-
-    Args:
-        t1: Array of m points (m x d).
-        t2: Array of n points (n x d).
-
-    Returns:
-        (m x n) matrix."""
-
-    omega = 2 * np.pi * frequency
-    sum_of_cosines = 0
-
-    sqdist = np.sum(t1**2, 1).reshape(-1, 1) + \
-        np.sum(t2**2, 1) - 2 * np.dot(t1, t2.T)
-    for m in range(M):
-        sum_of_cosines += np.cos((m + 1) * omega * (t2 - t1))
-
-    return 1/(2 * np.pi * sigma**2) * np.exp(-(sigma**2 * sqdist) / 2) * sum_of_cosines
+    Compute the MoG spectral kernel matrix between two sets of vectors.
+    
+    X1 and X2 are arrays of shape (n1, d) and (n2, d), where n1 and n2 are the
+    numbers of vectors and d is the dimension of each vector.
+    
+    M is the number of partials or harmonics for each note source.
+    """
+    n1= X1.shape[0]
+    n2 = X2.shape[0]
+    
+    kernel_matrix = np.zeros((n1, n2))
+    
+    for i in range(n1):
+        for j in range(n2):
+            x1 = X1[i, :]
+            x2 = X2[j, :]
+            
+            cosine_series = 0
+            for fundamental_frequency in frequencies:
+                for m in range(M):
+                    cosine_series += np.cos((m + 1) * 2 * np.pi * fundamental_frequency * np.linalg.norm(x1 - x2))
+            
+            kernel_value = (1 / np.pi) * np.exp(-(sigma**2 / 2) * np.linalg.norm(x1 - x2)**2) * cosine_series
+            kernel_matrix[i, j] = kernel_value
+    
+    return kernel_matrix
 
 def RBF_kernel(X1, X2, l=1.0, sigma_f=1.0):
     """
@@ -58,7 +90,7 @@ X = np.arange(-5, 5, 0.2).reshape(-1, 1)
 
 # Mean and covariance of the prior
 mu = np.zeros(X.shape)
-cov = RBF_kernel(X, X)
+cov = MoG_spectral_kernel_matrix(X, X)
 
 # Plot heat map of covariance function
 plt.imshow(cov, cmap='hot', interpolation='nearest')
@@ -73,9 +105,9 @@ plot_gp(mu, cov, X, samples=samples)
 plt.show()
 
 
-def posterior(X_s, X_train, Y_train, l=0.00005, sigma_f=2, sigma_y=1e-8): # for viola, l = 0.00005 and sigma_f = 2 are optimal
+def posterior(X_s, X_train, Y_train, M=3, sigma=1.0, sigma_y=1e-8): # for RBF,viola, l = 0.00005 and sigma_f = 2 are optimal
     """
-    Computes the suffifient statistics of the posterior distribution 
+    Computes the sufficient statistics of the posterior distribution 
     from m training data X_train and Y_train and n new inputs X_s.
 
     Args:
@@ -89,10 +121,10 @@ def posterior(X_s, X_train, Y_train, l=0.00005, sigma_f=2, sigma_y=1e-8): # for 
     Returns:
         Posterior mean vector (n x d) and covariance matrix (n x n).
     """
-    K = RBF_kernel(X_train, X_train, l, sigma_f) + \
+    K = MoG_spectral_kernel_matrix(X_train, X_train) + \
         sigma_y**2 * np.eye(len(X_train))
-    K_s = RBF_kernel(X_train, X_s, l, sigma_f)
-    K_ss = RBF_kernel(X_s, X_s, l, sigma_f) + 1e-8 * np.eye(len(X_s))
+    K_s = MoG_spectral_kernel_matrix(X_train, X_s)
+    K_ss = MoG_spectral_kernel_matrix(X_s, X_s) + 1e-8 * np.eye(len(X_s))
     K_inv = inv(K)
 
     # Equation (7)
@@ -105,7 +137,7 @@ def posterior(X_s, X_train, Y_train, l=0.00005, sigma_f=2, sigma_y=1e-8): # for 
 
 
 # Option 1: wave file method
-wav_file = '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/wav_files/viola_octave.wav'
+wav_file = '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/wav_files/viola_perfect_5th.wav'
 # wav_file = create_sine_wave("Sine.wav", frequency=440)
 
 # Read a WAV file
@@ -119,7 +151,6 @@ time_length = Y_train.shape[0] / sample_rate
 # # Plotting the wave form in the time domain
 X_train = np.linspace(0., time_length, Y_train.shape[0]).reshape(-1, 1)
 X = np.linspace(0, time_length, 200).reshape(-1, 1) 
-
 
 
 
