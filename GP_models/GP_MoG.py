@@ -34,7 +34,7 @@ def MoG_spectral_kernel(x1, x2, M=3,  sigma=0.1, frequencies=[4, 5]):
     return (1/np.pi ) * np.exp(-(sigma**2/2) * np.linalg.norm(x1- x2)**2) * cosine_series
 
 
-def plot_cov_matrix(X, Y=None, M=1,  sigma=0.1, frequencies=[80]):
+def plot_cov_matrix(X, Y=None, M=1,  sigma=0.1, frequencies=[440,880]):
     if Y is None:
         Y = X
     cov = np.zeros((len(X), len(Y)))
@@ -42,6 +42,27 @@ def plot_cov_matrix(X, Y=None, M=1,  sigma=0.1, frequencies=[80]):
         for j in range(len(Y)):
             cov[i,j] = MoG_spectral_kernel(i, j, M=M, sigma=sigma, frequencies=frequencies)
     return cov
+
+
+
+# Plot the kernel function
+X = np.arange(-50,50, 1)
+data1 = np.zeros(len(X))
+data2 = np.zeros(len(X))
+data3 = np.zeros(len(X))
+for i in range(len(X)):
+    data1[i] = MoG_spectral_kernel(X[i], 0,sigma=0.1)
+    data2[i] = MoG_spectral_kernel(X[i],0 , sigma=0.00001)
+    data3[i] = MoG_spectral_kernel(X[i],0 , sigma=0.1, frequencies = [440,880, 1760])
+fig, axes = plt.subplots(2,2)
+axes[0,0].plot(X, data1)
+axes[0,0].set_title("sigma = 0.1")
+axes[0,1].plot(X, data2)
+axes[0,1].set_title("sigma = 0.00001")
+axes[1,0].plot(X, data3)
+axes[1,0].set_title("frequencies=[440,880]")
+fig.tight_layout()
+fig.show()
 
 
 # Mean of the prior
