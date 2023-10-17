@@ -9,6 +9,8 @@ from scipy.optimize import minimize
 from scipy.fft import fft
 from scipy.fft import fftfreq
 
+name = 'tuner_440'
+
 def plot_gp(mu, cov, X, X_train=None, Y_train=None, samples=[]):
     X = X.ravel()
     mu = mu.ravel()
@@ -82,47 +84,53 @@ def posterior(X_s, X_train, Y_train, M=10, sigma=1.0, sigma_y=1e-8, frequencies 
 
     return mu_s, cov_s
 
+# Convert data to frequency domain and plot
+def plot_frequency_response(data, data2, sample_rate):
+    data=data.ravel()
+    fft_data = fft(data)
+    N = len(data)
+    normalise = N/2
+    
+    frequency_axis = fftfreq(N, 1.0/sample_rate)
+    norm_amplitude = np.abs(fft_data)/normalise
+    
+    plt.plot(frequency_axis[:N//2], norm_amplitude[:N//2] ,'b')
+    if data2 is not None:
+        data2=data2.ravel()
+        fft_data2 = fft(data2)
+        norm_amplitude_2 = np.abs(fft_data2)/normalise
+        plt.plot(frequency_axis[:N//2], norm_amplitude_2[:N//2], 'r')
+    # Plot the results
+    plt.xlabel('Frequency[Hz]')
+    plt.ylabel('Amplitude')
+    plt.title('Spectrum')
+    plt.legend(["posterior", "actual data"])
+    plt.show()
 
 # Wav file method
-wav_file = '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/wav_files/viola_octave.wav'
+wav_file = '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/wav_files/'+name+'.wav'
 
 # Read a Wav file
 sample_rate, data = wav.read(wav_file)
 
 # Truncate data to make manageable
-Y_train = data[:100].reshape(-1, 1)  
+Y_train = data[:200].reshape(-1, 1)  
 
 # Find time length of truncated data
 time_length = Y_train.shape[0] / sample_rate
 
-# # Plotting the wave form in the time domain
+# Plotting the wave form in the time domain
 X_train = np.linspace(0., time_length, Y_train.shape[0]).reshape(-1, 1)
 X = np.linspace(0, time_length, 200).reshape(-1, 1) 
 
 noise = 0.0005
 
 # Compute mean and covariance of the posterior distribution
-mu_s, cov_s = posterior(X, X_train, Y_train, M = 20,sigma_y=noise)
-
-samples = np.random.multivariate_normal(mu_s.ravel(), cov_s, 3)
-plot_gp(mu_s, cov_s, X, X_train=X_train, Y_train=Y_train, samples=samples)
+mu_s, cov_s = posterior(X, X_train, Y_train, M = 20,sigma_y=noise, frequencies=[440])
+plot_frequency_response(mu_s, Y_train, sample_rate)
+# samples = np.random.multivariate_normal(mu_s.ravel(), cov_s, 3)
+plot_gp(mu_s, cov_s, X, X_train=X_train, Y_train=Y_train)
 plt.show()
-
-# # Convert audio data to frequency domain
-# fft_data = fft(mu_s)
-# N = len(mu_s)
-# normalise = N/2
-
-# # Get the frequency components of the spectrum
-# frequency_axis = fftfreq(N, d=1/44100)
-# norm_amplitude = np.abs(fft_data)/normalise
-
-# # Plot the results
-# plt.plot(frequency_axis, norm_amplitude)
-# plt.xlabel('Frequency[Hz]')
-# plt.ylabel('Amplitude')
-# plt.title('Spectrum')
-# plt.show()
 
 def log_likelihood(X_train, Y_train, M=10, sigma=100, frequencies=[400]):
     Y_train = Y_train.ravel()
@@ -144,10 +152,48 @@ def stable_log_likelihood(X_train, Y_train, M=10, sigma=100, frequencies=[400]):
             0.5 * Y_train.dot(S2) + \
             0.5 * len(X_train) * np.log(2*np.pi)
 
+def golden_section(x1, x2, X_train, Y_train, M, sigma, tol=1 ):
+    # Initial points
+    f1 = stable_log_likelihood(X_train, Y_train, M, sigma, frequencies=[x1])
+    f2 = stable_log_likelihood(X_train, Y_train, M, sigma, frequencies=[x2])
+
+    # Set up golden ratios
+    r = (np.sqrt(5)-1)/2.0
+
+    # Third point
+    x3 = x1 * (1-r) + x2 * r
+    f3 = stable_log_likelihood(X_train, Y_train, M, sigma, frequencies=[x3])
+
+    # Loop until convergence
+    while abs(x1-x2) > tol:
+        
+        x4 = x1 * r +  x2 * (1-r)
+        f4 = stable_log_likelihood(X_train, Y_train, M, sigma, frequencies=[x4])
+        print(f4)
+        if f4 < f3:
+            x2 = x3
+            f2=f3
+            x3=x4
+            f3=f4
+        else:
+            x1= x2
+            f1 = f2
+            x2= x4
+            f2= f4
+    return x3
+
+# frequency = golden_setion( 200, 600, X_train, Y_train, 10, 0.001,  0.1) 
+# print(frequency)
+# def return_fn(X_train, Y_train, M):
+#     def fn_stable_log_likelihood(theta):
+#         print(theta[0], theta[1])
+#         return stable_log_likelihood(X_train, Y_train, M, sigma=theta[0], frequencies=[theta[0]])
+#     return fn_stable_log_likelihood
+
 print(f"loglikelihood of 586 Hz is {stable_log_likelihood(X_train=X_train, Y_train=Y_train, frequencies=[586])}")
 print(f"loglikelihood of 440 Hz is {stable_log_likelihood(X_train=X_train, Y_train=Y_train, frequencies=[440])}")
 print(f"loglikelihood of 5 Hz is {stable_log_likelihood(X_train=X_train, Y_train=Y_train, frequencies=[5])}")
 
-res = minimize(stable_log_likelihood(X_train, Y_train, noise),  [frequencies=[440]] , 
-               bounds=((20,20000)),
-               method='L-BFGS-B')
+# res = minimize(return_fn(X_train, Y_train, M=10), [0.01, 420], bounds=[(0.0000005, 100), (20, 20000)], method='L-BFGS-B')
+# sigma, frequency=res.x
+# print(sigma, frequency)
