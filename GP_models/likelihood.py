@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 from numpy.linalg import inv
 import numpy as np
 import matplotlib.pyplot as plt
@@ -8,8 +10,9 @@ from scipy.linalg import solve_triangular
 from scipy.optimize import golden
 from scipy.fft import fft
 from scipy.fft import fftfreq
+import scipy.io.wavfile as wavf
 
-name = 'viola_octave'
+name = 'tuner_440'
 
 
 def plot_gp(mu, cov, X, X_train=None, Y_train=None, samples=[]):
@@ -107,7 +110,9 @@ def plot_frequency_response(data, data2, sample_rate):
     if data2 is not None:
         data2 = data2.ravel()
         fft_data2 = fft(data2)
-        norm_amplitude_2 = np.abs(fft_data2)/normalise
+        N2 = len(data2)
+        normalise2 = N2/2
+        norm_amplitude_2 = np.abs(fft_data2)/normalise2
         plt.plot(frequency_axis[:N//2], norm_amplitude_2[:N//2], 'r')
     # Plot the results
     plt.xlabel('Frequency[Hz]')
@@ -158,6 +163,12 @@ plt.show()
 # Plot posterior function over points
 plot_gp(mu_s, cov_s, X, X_train=X_train, Y_train=Y_train)
 plt.show()
+
+
+# Play modelled sound
+data = np.array([mu_s]*10)
+out_f = 'out.wav'
+wavf.write(out_f, sample_rate, data/24500)
 
 
 def log_likelihood(X_train, Y_train, M=10, sigma=100, frequencies=[400]):
