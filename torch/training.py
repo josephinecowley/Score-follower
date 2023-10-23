@@ -1,25 +1,27 @@
+# Import the necessary libraries
 import math
-import scipy.io.wavfile as wav
 from matplotlib import pyplot as plt
 import torch
 import gpytorch
-
 from models import SpectralMixtureGP
-# Set default torch dtype to float to allow for MLL approxmation
-torch.set_default_dtype(torch.float64)
 
-# Wav file method
-wav_file = '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/wav_files/tuner_440.wav'
+from torch.distributions.mixture_same_family import MixtureSameFamily
+from torch.distributions.categorical import Categorical
+from torch.distributions.independent import Independent
+from torch.distributions.normal import Normal
 
-# Read a Wav file
-sample_rate, y_train = wav.read(wav_file)
-y_train = torch.from_numpy(y_train[:300])
-x_train = torch.linspace(0, y_train.size(
-    dim=0) * sample_rate, y_train.size(dim=0))
+# Generating the data
+
+# The training data is 15 equally spaced points from [0,1]
+x_train = torch.linspace(0, 1, 15)
+
+# The true function is sin(2*pi*x) with Gaussian noise N(0, 0.04)
+y_train = torch.sin(x_train*2*math.pi) + \
+    torch.randn(x_train.size()) * math.sqrt(0.04)
 
 # Plot the training data
 plt.plot(x_train.numpy(), y_train.numpy(), "*k")
-plt.show()
+# plt.show()
 
 
 # Initialise the likelihood and model
@@ -32,7 +34,6 @@ model = SpectralMixtureGP(x_train, y_train, likelihood)
 # Put the model into training mode
 model.train()
 likelihood.train()
-
 
 # Use the Adam optimiser, with learning rate set to 0.1
 optimiser = torch.optim.Adam(model.parameters(), lr=0.1)
@@ -57,10 +58,8 @@ for i in range(n_iter):
 
 # Making predictions with the model
 
-
-# The test data is 5 times the length of the training data, at equally-spaced points from [0,5]
-x_test = torch.linspace(0, 2*y_train.size(
-    dim=0) * sample_rate, 500)
+# The test data is 50 equally-spaced points from [0,5]
+x_test = torch.linspace(0, 5, 50)
 
 # Put the model into evaluation mode
 model.eval()
