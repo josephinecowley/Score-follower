@@ -103,6 +103,9 @@ def plot_gp(mu, cov, T_test, T_train=None, Y_train=None, samples=0):
         T_train: Vector of training time samples.
         Y_train: Vector of training outputs corresponding to T_train.
         samples: Integer number of random samples to draw and plot. 
+
+    Returns:
+        Plot of predictive mean and 95% error bars, along with the number of samples specified.
     """
     T_test = T_test.ravel()
     mu = mu.ravel()
@@ -118,7 +121,7 @@ def plot_gp(mu, cov, T_test, T_train=None, Y_train=None, samples=0):
         # Add a small amount of noise to ensure it is ositive definite
         K = cov + 1e-6 * np.eye(len(T_test))
         L = np.linalg.cholesky(K)
-        y = np.dot(L.T, z)
+        y = np.dot(L.T, z) + mu
         plt.plot(T_test, y, lw=1, ls='--', label=f'Sample {i+1}')
 
     # Plot training data if required
@@ -321,7 +324,7 @@ def stable_nlml(T, Y, M=6, sigma_f=1e-5, f=[440], sigma_n=1e-5):
 # ----------------------------------------------------------
 
 
-def posterior(X_s, X_train, Y_train, M=10, sigma=1.0, sigma_y=1e-8, frequencies=[440, 880]):
+def posterior(X_s, X_train, Y_train, M=8, sigma_f=20, sigma_y=1e-2, f=[440]):
     """
     Computes the sufficient statistics of the posterior distribution 
     from m training data X_train and Y_train and n new inputs X_s.
@@ -337,12 +340,12 @@ def posterior(X_s, X_train, Y_train, M=10, sigma=1.0, sigma_y=1e-8, frequencies=
     Returns:
         Posterior mean vector (n x d) and covariance matrix (n x n).
     """
-    K = SM_kernel_matrix(X_train, X_train, M=M, sigma=sigma, frequencies=frequencies) + \
+    K = return_SM_kernel_matrix(X_train, X_train, M=M, sigma_f=sigma_f, f=f) + \
         sigma_y**2 * np.eye(len(X_train))
-    K_s = SM_kernel_matrix(
-        X_train, X_s, M=M, sigma=sigma, frequencies=frequencies)
-    K_ss = SM_kernel_matrix(
-        X_s, X_s, M=M, sigma=sigma, frequencies=frequencies) + 1e-8 * np.eye(len(X_s))
+    K_s = return_SM_kernel_matrix(
+        X_train, X_s, M=M, sigma_f=sigma_f, f=f)
+    K_ss = return_SM_kernel_matrix(
+        X_s, X_s, M=M, sigma_f=sigma_f, f=f) + 1e-8 * np.eye(len(X_s))
     K_inv = inv(K)
 
     # Calculate posterior mean function
