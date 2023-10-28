@@ -13,9 +13,9 @@ from scipy.fft import fftfreq
 import scipy.io.wavfile as wavf
 
 
-# ---------------------------------------------------#
+# ----------------------------------------------------------
 # Helper plotting functions
-# ---------------------------------------------------#
+# ----------------------------------------------------------
 
 def plot_gp(mu, cov, T, T_train=None, Y_train=None, samples=None):
     """
@@ -54,9 +54,9 @@ def plot_gp(mu, cov, T, T_train=None, Y_train=None, samples=None):
     plt.legend()
     plt.show()
 
-# ---------------------------------------------------#
+# ----------------------------------------------------------
 # Helper kernel functions and matrices
-# ---------------------------------------------------#
+# ----------------------------------------------------------
 
 
 def SM_kernel(t1, t2, M=6, f=[440], sigma_f=1e-5):
@@ -129,28 +129,46 @@ def RBF_kernel(X1, X2, l=1.0, sigma_f=1.0):
         np.sum(X2**2, 1) - 2 * np.dot(X1, X2.T)
     return sigma_f**2 * np.exp(-0.5 / l**2 * sqdist)
 
-# ---------------------------------------------------#
+# ----------------------------------------------------------
 # Marginal likelihood functions
-# ---------------------------------------------------#
+# ----------------------------------------------------------
 
 
-def nlml(X_train, Y_train, M=10, sigma_f=100, frequencies=[400], noise=1e-5):
+def nlml(T, Y, M=10, sigma_f=100, frequencies=[400], noise=1e-5):
     """
     Return Negative Log Marginal Likelihood.
+    Assumes zero mean, and does not add noise to ensure positive definite covariance matrix.
 
-    Args:TODO
+    Args:
+        T: Vector of input time samples.
+        Y: Vector of corresponding time value outputs, to be measured against the GP model.
 
-
+    Returns:
+        Value of Negative Log Marginal Likelihood.
     """
-    Y_train = Y_train.ravel()
-    K = SM_kernel_matrix(X_train, X_train, M=M, sigma_f=sigma_f, frequencies=frequencies) + \
-        noise**2 * np.eye(len(X_train))
-    return 0.5 + 0.5 * Y_train.dot(inv(K).dot(Y_train)) + 0.5 * len(X_train) * np.log(2*np.pi)
-
-
-def stable_nlml(T, Y, M=6, sigma_f=100, frequencies=[440], sigma_n=1e-5):
     Y = Y.ravel()
     K = SM_kernel_matrix(T, T, M=M, sigma_f=sigma_f, frequencies=frequencies) + \
+        noise**2 * np.eye(len(T))
+    return 0.5 * Y.dot(inv(K).dot(Y)) + 0.5 * np.log(det(K)) + 0.5 * len(T) * np.log(2*np.pi)
+
+
+def stable_nlml(T, Y, M=6, sigma_f=1e-5, f=[440], sigma_n=1e-5):
+    """
+    Return Negative Log Marginal Likelihood via stable method.
+    Assumes zero mean.
+
+    Numerically more stable implementation of nlml as described in http://www.gaussianprocess.org/gpml/chapters/RW2.pdf, 
+    Section 2.2, Algorithm 2.1.
+
+    Args:
+        T: Vector of input time samples.
+        Y: Vector of corresponding time value outputs, to be measured against the GP model.
+
+    Returns:
+        Value of Negative Log Marginal Likelihood.
+    """
+    Y = Y.ravel()
+    K = SM_kernel_matrix(T, T, M=M, sigma_f=sigma_f, f=f) + \
         sigma_n**2 * np.eye(len(T))
     L = cholesky(K)
 
@@ -161,9 +179,9 @@ def stable_nlml(T, Y, M=6, sigma_f=100, frequencies=[440], sigma_n=1e-5):
         0.5 * Y.dot(S2) + \
         0.5 * len(T) * np.log(2*np.pi)
 
-# ---------------------------------------------------#
+# ----------------------------------------------------------
 # Predictor functions
-# ---------------------------------------------------#
+# ----------------------------------------------------------
 
 
 def posterior(X_s, X_train, Y_train, M=10, sigma=1.0, sigma_y=1e-8, frequencies=[440, 880]):
@@ -198,15 +216,15 @@ def posterior(X_s, X_train, Y_train, M=10, sigma=1.0, sigma_y=1e-8, frequencies=
 
     return mu_s, cov_s
 
-# ---------------------------------------------------#
+# ----------------------------------------------------------
 # Helper optimiser functions
-# ---------------------------------------------------#
+# ----------------------------------------------------------
 
 
 def golden_section(x1, x2, X_train, Y_train, M, sigma, tol=1, integer_search=False):
     # Initial points
-    f1 = stable_log_likelihood(X_train, Y_train, M, sigma, frequencies=[x1])
-    f2 = stable_log_likelihood(X_train, Y_train, M, sigma, frequencies=[x2])
+    f1 = stable_nlml(X_train, Y_train, M, sigma, frequencies=[x1])
+    f2 = stable_nlml(X_train, Y_train, M, sigma, frequencies=[x2])
 
     # Set up golden ratios
     r = (np.sqrt(5)-1)/2.0
@@ -216,7 +234,7 @@ def golden_section(x1, x2, X_train, Y_train, M, sigma, tol=1, integer_search=Fal
         x3 = x1 * (1-r) + x2 * r
     else:
         x3 = int(x1 * (1-r) + x2 * r)
-    f3 = stable_log_likelihood(X_train, Y_train, M, sigma, frequencies=[x3])
+    f3 = stable_nlml(X_train, Y_train, M, sigma, frequencies=[x3])
 
     # Loop until convergence
     while abs(x1-x2) > tol:
@@ -225,7 +243,7 @@ def golden_section(x1, x2, X_train, Y_train, M, sigma, tol=1, integer_search=Fal
             x4 = x1 * r + x2 * (1-r)
         else:
             x4 = int(x1 * r + x2 * (1-r))
-        f4 = stable_log_likelihood(
+        f4 = stable_nlml(
             X_train, Y_train, M, sigma, frequencies=[x4])
         print(f4, '/n', x3)
         if f4 < f3:
@@ -239,3 +257,61 @@ def golden_section(x1, x2, X_train, Y_train, M, sigma, tol=1, integer_search=Fal
             x2 = x4
             f2 = f4
     return x3
+
+
+def nll_fn(X_train, Y_train, sigma_n, naive=True):
+    """
+    Returns a function that computes the negative log marginal
+    likelihood for training data X_train and Y_train and given
+    noise level.
+
+    Args:
+        X_train: training locations (m x d).
+        Y_train: training targets (m x 1).
+        noise: known noise level of Y_train.
+        naive: if True use a naive implementation of Eq. (11), if
+               False use a numerically more stable implementation.
+
+    Returns:
+        Minimization objective.
+
+    Example:
+    res = minimize(nll_fn(X_train, Y_train, noise), [1, 1],
+               bounds=((1e-5, None), (1e-5, None)),
+               method='L-BFGS-B')
+    l_opt, sigma_f_opt = res.x
+
+    """
+
+    Y_train = Y_train.ravel()
+
+    def nlml_naive(theta):
+        # Naive implementation of Eq. (11). Works well for the examples
+        # in this article but is numerically less stable compared to
+        # the implementation in nll_stable below.
+        K = SM_kernel_matrix(X_train, X_train, l=theta[0], sigma_f=theta[1]) + \
+            sigma_n**2 * np.eye(len(X_train))
+        return 0.5 * np.log(det(K)) + \
+            0.5 * Y_train.dot(inv(K).dot(Y_train)) + \
+            0.5 * len(X_train) * np.log(2*np.pi)
+
+    def nlml_stable(theta):
+        # Numerically more stable implementation of Eq. (11) as described
+        # in http://www.gaussianprocess.org/gpml/chapters/RW2.pdf, Section
+        # 2.2, Algorithm 2.1.
+
+        K = SM_kernel_matrix(X_train, X_train, l=theta[0], sigma_f=theta[1]) + \
+            sigma_n**2 * np.eye(len(X_train))
+        L = cholesky(K)
+
+        S1 = solve_triangular(L, Y_train, lower=True)
+        S2 = solve_triangular(L.T, S1, lower=False)
+
+        return np.sum(np.log(np.diagonal(L))) + \
+            0.5 * Y_train.dot(S2) + \
+            0.5 * len(X_train) * np.log(2*np.pi)
+
+    if naive:
+        return nlml_naive
+    else:
+        return nlml_stable
