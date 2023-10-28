@@ -35,22 +35,24 @@ def plot_audio(T, data):
     plt.show()
 
 
-def plot_fft(data, sample_rate=44100):
+def plot_fft(data, sample_rate=44100, power_spectrum=False, colour='r'):
     """
     Visualise audio frequency data using DFT.
 
     Args: TODO
-
+        power_spectrum: Make this tru eif plotting a kernel function as the fft will be the power spectrum.
     Returns:
         Returns positive fft data and plots a grah of positive values of the audio spectrum. 
     """
-    fft_data = abs(fft(data))
+    if power_spectrum is False:
+        fft_data = abs(fft(data, norm="ortho"))
+    else:
+        fft_data = np.sqrt(abs(fft(data, norm="ortho")))
     frequency_axis = fftfreq(len(data), d=1.0/sample_rate)
-    plt.plot(frequency_axis[:len(data)//2], fft_data[:len(data)//2], 'r')
+    plt.plot(frequency_axis[:len(data)//2], fft_data[:len(data)//2], colour)
     plt.xlabel('Frequency[Hz]')
     plt.ylabel('Amplitude')
     plt.title('Spectrum')
-    plt.show()
     return fft_data[:len(data)//2]
 
 
@@ -124,6 +126,40 @@ def plot_gp(mu, cov, T_test, T_train=None, Y_train=None, samples=0):
         plt.plot(T_train, Y_train, 'rx')
 
     plt.legend()
+    plt.show()
+
+# ----------------------------------------------------------
+# SM kernel spectrum plotting
+# ----------------------------------------------------------
+
+
+def gaussian_function(x, mu, sig):
+    return 1.0 / (np.sqrt(2.0 * np.pi) * sig) * np.exp(-np.power((x - mu) / sig, 2.0) / 2)
+
+
+def return_gaussian(mu, sig, max_freq=5000, show=False):
+    max_freq = max_freq
+    # Note the value of the number of samples affects the seen amplitudes (resolution may be too low!)
+    f_spectrum = np.linspace(0, max_freq, 10000)
+    output = np.zeros(len(f_spectrum))
+    for i in range(len(output)):
+        output[i] = gaussian_function(f_spectrum[i], mu=mu, sig=sig)
+    if show is False:
+        return output
+    plt.plot(f_spectrum, output)
+    plt.show()
+    return output
+
+
+def return_kernel_spectrum(f=[440], M=6, sigma_f=10, show=False):
+    f_spectrum = np.linspace(0, 2000, 10000)
+    output = np.zeros(len(f_spectrum))
+    for fundamental_frequency in f:
+        for m in range(M):
+            output += return_gaussian(fundamental_frequency*(m+1), sigma_f)
+    if show is False:
+        return output, f_spectrum
+    plt.plot(f_spectrum, output)
     plt.show()
 
 # ----------------------------------------------------------
