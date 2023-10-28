@@ -35,20 +35,23 @@ def plot_audio(T, data):
     plt.show()
 
 
-def plot_kernel_matrix(kernel_matrix):
+def plot_fft(data, sample_rate=44100):
     """
-    Visualise kernel matrix.
+    Visualise audio frequency data using DFT.
 
-    Args:
-        kernel_matrix: a matrix.
+    Args: TODO
 
     Returns:
-        Plot of matrix in heat map. 
+        Returns positive fft data and plots a grah of positive values of the audio spectrum. 
     """
-    plt.imshow(kernel_matrix, cmap='coolwarm', interpolation='nearest')
-    plt.title("Covariance Matrix Heatmap")
-    plt.colorbar()
+    fft_data = abs(fft(data))
+    frequency_axis = fftfreq(len(data), d=1.0/sample_rate)
+    plt.plot(frequency_axis[:len(data)//2], fft_data[:len(data)//2], 'r')
+    plt.xlabel('Frequency[Hz]')
+    plt.ylabel('Amplitude')
+    plt.title('Spectrum')
     plt.show()
+    return fft_data[:len(data)//2]
 
 
 def plot_kernel(T, kernel):
@@ -69,35 +72,52 @@ def plot_kernel(T, kernel):
     plt.show()
 
 
-def plot_gp(mu, cov, T, T_train=None, Y_train=None, samples=None):
+def plot_kernel_matrix(kernel_matrix):
+    """
+    Visualise kernel matrix.
+
+    Args:
+        kernel_matrix: a matrix.
+
+    Returns:
+        Plot of matrix in heat map. 
+    """
+    plt.imshow(kernel_matrix, cmap='coolwarm', interpolation='nearest')
+    plt.title("Covariance Matrix Heatmap")
+    plt.colorbar()
+    plt.show()
+
+
+def plot_gp(mu, cov, T_test, T_train=None, Y_train=None, samples=0):
     """
     Plot the Gaussian Process (GP).
 
     # TODO need to check all the dimension stuff going on
 
     Args:
-        mu: Mean of the GP.
-        cov: Covariance matrix of the GP, dimensions (D, D).
-        T: Vector of time samples to plot GP for, dimension D.
+        mu: Mean vector of the GP at the test inputs.
+        cov: Covariance matrix of the GP, from test inputs.
+        T_test: Vector of time samples to plot GP for.
         T_train: Vector of training time samples.
         Y_train: Vector of training outputs corresponding to T_train.
         samples: Integer number of random samples to draw and plot. 
     """
-    T = T.ravel()
+    T_test = T_test.ravel()
     mu = mu.ravel()
     uncertainty = 1.96 * np.sqrt(np.diag(cov))  # Plot 95% curves
 
-    plt.fill_between(T, mu + uncertainty, mu - uncertainty, alpha=0.1)
-    plt.plot(T, mu, label='Mean')
+    plt.fill_between(T_test, mu + uncertainty, mu - uncertainty, alpha=0.1)
+    plt.plot(T_test, mu, label='Mean')
 
     # Generate and plot random samples
     for i in range(samples):
-        z = np.random.randn(len(T), 1).ravel()
+        # Draw three samples from the prior
+        z = np.random.randn(len(T_test), 1).ravel()
         # Add a small amount of noise to ensure it is ositive definite
-        K = cov + 1e-6 * np.eye(len(T))
+        K = cov + 1e-6 * np.eye(len(T_test))
         L = np.linalg.cholesky(K)
         y = np.dot(L.T, z)
-        plt.plot(T, y, lw=1, ls='--', label=f'Sample {i+1}')
+        plt.plot(T_test, y, lw=1, ls='--', label=f'Sample {i+1}')
 
     # Plot training data if required
     if T_train is not None:
@@ -193,36 +213,6 @@ def return_SM_kernel_matrix(T1, T2=None, M=6, f=[440], sigma_f=1e-5, show=False)
     return kernel_matrix
 
 
-def SM_kernel_matrix_multidimensional(T1, T2=None, M=6, f=[440], sigma_f=1e-5):
-    """
-    Compute the Spectral Mixture kernel matrix between two sets of vectors.
-    If T2 is None, find matrix between T1 and T1.
-
-    Args:
-        T1: Array of time samples of shape (n1, d) where n1 is the number of vectors and d is the dimension of each vector.
-        T2: Array of time samples of shape (n2, d) where n2 is the number of vectors and d is the dimension of each vector.
-
-    Returns:
-        Matrix of SM kernel.
-    """
-    if T2 is None:
-        T2 = T1
-
-    n1 = T1.shape[0]
-    n2 = T2.shape[0]
-
-    kernel_matrix = np.zeros((n1, n2))
-
-    for i in range(n1):
-        for j in range(n2):
-            t1 = T1[i, :]
-            t2 = T2[j, :]
-
-            kernel_matrix[i, j] = SM_kernel(t1, t2, M, sigma_f, f)
-
-    return kernel_matrix
-
-
 def RBF_kernel(X1, X2, l=1.0, sigma_f=1.0):
     """
     Isotropic squared exponential kernel.
@@ -256,7 +246,7 @@ def nlml(T, Y, M=10, sigma_f=100, frequencies=[400], noise=1e-5):
         Value of Negative Log Marginal Likelihood.
     """
     Y = Y.ravel()
-    K = SM_kernel_matrix(T, T, M=M, sigma_f=sigma_f, frequencies=frequencies) + \
+    K = return_SM_kernel_matrix(T, T, M=M, sigma_f=sigma_f, frequencies=frequencies) + \
         noise**2 * np.eye(len(T))
     return 0.5 * Y.dot(inv(K).dot(Y)) + 0.5 * np.log(det(K)) + 0.5 * len(T) * np.log(2*np.pi)
 
@@ -277,7 +267,7 @@ def stable_nlml(T, Y, M=6, sigma_f=1e-5, f=[440], sigma_n=1e-5):
         Value of Negative Log Marginal Likelihood.
     """
     Y = Y.ravel()
-    K = SM_kernel_matrix(T, T, M=M, sigma_f=sigma_f, f=f) + \
+    K = return_SM_kernel_matrix(T, T, M=M, sigma_f=sigma_f, f=f) + \
         sigma_n**2 * np.eye(len(T))
     L = cholesky(K)
 
