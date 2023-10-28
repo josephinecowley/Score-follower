@@ -2,7 +2,7 @@ import GPy
 from GPy.kern import Kern
 
 
-# JC: This is my own MoG kernel EDIT THIS ONE
+# JC: Do not edit this one -- THISONE IS FOR COPYING
 
 
 # -*- coding: utf-8 -*-
@@ -26,20 +26,21 @@ from paramz.transformations import Logexp
 import numpy as np
 
 
-class CustomMogKernel(Kern):
+class MogKernel(Kern):
     """
-    Custom MoG kernel
+    Standart periodic kernel
 
     .. math::
 
-       k(x, y) = (1 / pi) * exp(-\theta / 2 * ||x - y||^2) * Σ_{f ∈ frequencies} Σ_{m=1}^{M} cos(m * 2πf * ||x - y||)
+       k(x,y) = \theta_1 \exp \left[  - \frac{1}{2} \sum_{i=1}^{input\_dim}
+       \left( \frac{\sin(\frac{\pi}{T_i} (x_i - y_i) )}{l_i} \right)^2 \right] }
 
     :param input_dim: the number of input dimensions
     :type input_dim: int
     :param variance: the variance :math:`\theta_1` in the formula above
     :type variance: float
-    :param freuency: the vector of freuencys :math:`\f`. If None then 440.0 is assumed.
-    :type freuency: array or list of the appropriate size (or float if there is only one freuency parameter)
+    :param period: the vector of periods :math:`\T_i`. If None then 1.0 is assumed.
+    :type period: array or list of the appropriate size (or float if there is only one period parameter)
     :param lengthscale: the vector of lengthscale :math:`\l_i`. If None then 1.0 is assumed.
     :type lengthscale: array or list of the appropriate size (or float if there is only one lengthscale parameter)
     :param ARD1: Auto Relevance Determination with respect to period.
@@ -60,8 +61,8 @@ class CustomMogKernel(Kern):
     :type Boolean
     """
 
-    def __init__(self, input_dim, variance=1., period=None, lengthscale=None, ARD1=False, ARD2=False, active_dims=None, name='custom_mog_kernel', useGPU=False):
-        super(CustomMogKernel, self).__init__(
+    def __init__(self, input_dim, variance=1., period=None, lengthscale=None, ARD1=False, ARD2=False, active_dims=None, name='Mog_kernel', useGPU=False):
+        super(MogKernel, self).__init__(
             input_dim, active_dims, name, useGPU=useGPU)
         self.ARD1 = ARD1  # correspond to periods
         self.ARD2 = ARD2  # correspond to lengthscales
@@ -110,8 +111,8 @@ class CustomMogKernel(Kern):
         :return dict: json serializable dictionary containing the needed information to instantiate the object
         """
 
-        input_dict = super(CustomMogKernel, self)._save_to_input_dict()
-        input_dict["class"] = "GPy.kern.CustomMogKernel"
+        input_dict = super(MogKernel, self)._save_to_input_dict()
+        input_dict["class"] = "GPy.kern.MogKernel"
         input_dict["variance"] = self.variance.values.tolist()
         input_dict["period"] = self.period.values.tolist()
         input_dict["lengthscale"] = self.lengthscale.values.tolist()

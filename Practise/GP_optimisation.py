@@ -21,7 +21,7 @@ def plot_gp(mu, cov, X, X_train=None, Y_train=None, samples=[]):
     plt.legend()
 
 
-def MoG_spectral_kernel_matrix(X1, X2, M=3, sigma=0.1, frequencies=[440, 880]):
+def MoG_spectral_kernel_matrix(X1, X2, M=20, sigma=0.1, frequencies=[4, 5]):
     """
     Compute the MoG spectral kernel matrix between two sets of vectors.
     
@@ -84,7 +84,7 @@ plot_gp(mu, cov, X, samples=samples)
 plt.show()
 
 
-def posterior(X_s, X_train, Y_train, M=3, sigma=1.0, sigma_y=1e-8): # for RBF,viola, l = 0.00005 and sigma_f = 2 are optimal
+def posterior(X_s, X_train, Y_train, M=20, sigma=1.0, sigma_y=1e-8, frequencies = [440, 880]): # for RBF,viola, l = 0.00005 and sigma_f = 2 are optimal
     """
     Computes the sufficient statistics of the posterior distribution 
     from m training data X_train and Y_train and n new inputs X_s.
@@ -93,47 +93,45 @@ def posterior(X_s, X_train, Y_train, M=3, sigma=1.0, sigma_y=1e-8): # for RBF,vi
         X_s: New input locations (n x d).
         X_train: Training locations (m x d).
         Y_train: Training targets (m x 1).
-        l: Kernel length parameter.
-        sigma_f: Kernel vertical variation parameter.
+        M: Number of partials.
+        sigma: Kernel vertical variation parameter.
         sigma_y: Noise parameter.
 
     Returns:
         Posterior mean vector (n x d) and covariance matrix (n x n).
     """
-    K = MoG_spectral_kernel_matrix(X_train, X_train) + \
+    K = MoG_spectral_kernel_matrix(X_train, X_train, M=M, sigma=sigma, frequencies=frequencies) + \
         sigma_y**2 * np.eye(len(X_train))
-    K_s = MoG_spectral_kernel_matrix(X_train, X_s)
-    K_ss = MoG_spectral_kernel_matrix(X_s, X_s) + 1e-8 * np.eye(len(X_s))
+    K_s = MoG_spectral_kernel_matrix(X_train, X_s, M=M, sigma=sigma, frequencies=frequencies)
+    K_ss = MoG_spectral_kernel_matrix(X_s, X_s, M=M, sigma=sigma, frequencies=frequencies) + 1e-8 * np.eye(len(X_s))
     K_inv = inv(K)
 
-    # Equation (7)
+    # Calculate posterior mean function
     mu_s = K_s.T.dot(K_inv).dot(Y_train)
 
-    # Equation (8)
+    # Calculate posterior covariance function
     cov_s = K_ss - K_s.T.dot(K_inv).dot(K_s)
 
     return mu_s, cov_s
 
 
 # Option 1: wave file method
-wav_file = '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/wav_files/whistle_440.wav'
+wav_file = '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/wav_files/tuner_440.wav'
 # wav_file = create_sine_wave("Sine.wav", frequency=440)
 
 # Read a WAV file
 sample_rate, data = wav.read(wav_file)
 
-Y_train = data[:70].reshape(-1, 1)  # Truncate data to make manageable
+Y_train = data[:200].reshape(-1, 1)  # Truncate data to make manageable
 
-# Find time time length of truncated data
+# Find time length of truncated data
 time_length = Y_train.shape[0] / sample_rate
 
 # # Plotting the wave form in the time domain
 X_train = np.linspace(0., time_length, Y_train.shape[0]).reshape(-1, 1)
 X = np.linspace(0, time_length, 200).reshape(-1, 1) 
 
-
-
-noise = 0.4
+noise = 0.0005
 """
 # Option 2: Automatically generated noisy data
 
@@ -143,15 +141,14 @@ X = np.linspace(-5,5,100).reshape(-1,1)
 """
 
 # Compute mean and covariance of the posterior distribution
-
 mu_s, cov_s = posterior(X, X_train, Y_train, sigma_y=noise)
 
-samples = np.random.multivariate_normal(mu_s.ravel(), cov_s, 3)
-plot_gp(mu_s, cov_s, X, X_train=X_train, Y_train=Y_train, samples=samples)
+# samples = np.random.multivariate_normal(mu_s.ravel(), cov_s, 3)
+plot_gp(mu_s, cov_s, X, X_train=X_train, Y_train=Y_train)
 plt.show()
 
 
-def nll_fn(X_train, Y_train, noise, naive=True):
+def nll_fn(X_train, Y_train, noise, M=20,  naive=True):
     """
     Returns a function that computes the negative log marginal
     likelihood for training data X_train and Y_train and given
@@ -174,7 +171,7 @@ def nll_fn(X_train, Y_train, noise, naive=True):
         # Naive implementation of Eq. (11). Works well for the examples 
         # in this article but is numerically less stable compared to 
         # the implementation in nll_stable below.
-        K = MoG_spectral_kernel_matrix(X_train, X_train, M=int(theta[0]), sigma=theta[1]) + \
+        K = MoG_spectral_kernel_matrix(X_train, X_train, M=20, sigma=theta[0], frequencies = [theta[1]]) + \
             noise**2 * np.eye(len(X_train))
         return 0.5 * np.log(det(K)) + \
                0.5 * Y_train.dot(inv(K).dot(Y_train)) + \
@@ -185,7 +182,7 @@ def nll_fn(X_train, Y_train, noise, naive=True):
         # in http://www.gaussianprocess.org/gpml/chapters/RW2.pdf, Section
         # 2.2, Algorithm 2.1.
         
-        K = MoG_spectral_kernel_matrix(X_train, X_train, M=int(theta[0]), sigma=theta[1]) + \
+        K = MoG_spectral_kernel_matrix(X_train, X_train, M=20, sigma=theta[0], frequencies = [theta[1]]) + \
             noise**2 * np.eye(len(X_train))
         L = cholesky(K)
         
@@ -202,21 +199,22 @@ def nll_fn(X_train, Y_train, noise, naive=True):
         return nll_stable
     
     
-# Minimize the negative log-likelihood w.r.t. parameters l and sigma_f.
-# We should actually run the minimization several times with different
+# Minimize the negative log-likelihood w.r.t. parameters m and sigma, and the first two frequencies.
+# (JC: We should actually run the minimization several times with different
 # initializations to avoid local minima but this is skipped here for
-# simplicity.
-res = minimize(nll_fn(X_train, Y_train, noise), [1, 1], 
-               bounds=((1e-5, 20), (1e-5, 1e4)),
+# simplicity.)
+res = minimize(nll_fn(X_train, Y_train,noise,  M=20), [ 1, 450 ], 
+               bounds=((1e-5, 1e4), (20,20000)),
                method='L-BFGS-B')
 
 # Store the optimization results in global variables so that we can
 # compare it later with the results from other implementations.
-m_opt, sigma_f_opt = res.x
-print(m_opt, sigma_f_opt)
-# Compute posterior mean and covariance with optimized kernel parameters and plot the results
-mu_s, cov_s = posterior(X, X_train, Y_train, M=int(m_opt), sigma=sigma_f_opt, sigma_y=noise)
+sigma_f_opt, frequencies_1 = res.x
+print( sigma_f_opt, [frequencies_1])
+# # # Compute posterior mean and covariance with optimized kernel parameters and plot the results
+mu_s, cov_s = posterior(X, X_train, Y_train, M=20, sigma=sigma_f_opt, sigma_y=noise, frequencies=[frequencies_1])
 plot_gp(mu_s, cov_s, X, X_train=X_train, Y_train=Y_train)
+
+# Now want to calculate optimal value for M
 plt.show()
 
-#JC next: implement optimisation for frequency!

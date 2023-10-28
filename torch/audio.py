@@ -3,88 +3,73 @@ import scipy.io.wavfile as wav
 from matplotlib import pyplot as plt
 import torch
 import gpytorch
-
+import convenience_functions
 from models import SpectralMixtureGP
+import train
+
 # Set default torch dtype to float to allow for MLL approxmation
 torch.set_default_dtype(torch.float64)
 
-# Wav file method
-wav_file = '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/wav_files/tuner_440.wav'
 
 # Read a Wav file
+wav_file = '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/wav_files/Sine.wav'
 sample_rate, y_train = wav.read(wav_file)
-y_train = torch.from_numpy(y_train[:300])
+y_train = torch.Tensor(y_train[:500])
 x_train = torch.linspace(0, y_train.size(
     dim=0) * sample_rate, y_train.size(dim=0))
 
 # Plot the training data
 plt.plot(x_train.numpy(), y_train.numpy(), "*k")
 plt.show()
-
+print((x_train.dtype), (y_train.dtype))
 
 # Initialise the likelihood and model
-likelihood = gpytorch.likelihoods.GaussianLikelihood()
+likelihood = gpytorch.likelihoods.GaussianLikelihood(
+    noise_constraint=gpytorch.constraints.GreaterThan(1e-6))
 model = SpectralMixtureGP(x_train, y_train, likelihood)
 
-# Training the model
+
+# Update hyperparameters
+hypers = {
+    'likelihood.noise_covar.noise': torch.tensor(0.00001),
+}
+model.initialize(**hypers)
+# model.cov.mixture_means = torch.tensor([[0.000066], [0.0001211]])
+# model.cov.mixture_scales = torch.tensor([[5.0000], [0.0005], [0.000005]])
+# model.cov.mixture_weights = torch.tensor([[0.1426], [0.1246], [0.126]])
 
 
-# Put the model into training mode
-model.train()
-likelihood.train()
+def plot_model_kernel():
+    fig, ax = plt.subplots(figsize=(9, 7))
+    convenience_functions.plot_kernel(
+        model.cov, xx=torch.linspace(-2, 2, 1000), ax=ax, col="tab:blue")
+    ax.set_title("Learned kernel")
+    plt.show()
 
 
-# Use the Adam optimiser, with learning rate set to 0.1
-optimiser = torch.optim.Adam(model.parameters(), lr=0.1)
-
-# Use the negative marhinal log-likelihood as the loss function
-mll = gpytorch.mlls.ExactMarginalLogLikelihood(likelihood, model)
-
-# Set the number of training iterations
-n_iter = 50
-
-for i in range(n_iter):
-    # Set the gradients from previous iteration to zero
-    optimiser.zero_grad()
-    # Ouput from the model
-    output = model(x_train)
-    # Compute loss and backprop gradients
-    loss = -mll(output, y_train)
-    loss.backward()
-    print('Iter %d/%d - Loss: %.3f' % (i + 1, n_iter, loss.item()))
-    optimiser.step()
-
-
-# Making predictions with the model
-
+convenience_functions.plot_spectral_density(
+    model.spectral_density(model.cov))
+model, loss = train.train_with_restarts(
+    model=model,
+    num_iters=50,
+    num_restarts=2,
+    lr=0.1,
+    show_progress=True,
+)
+print(loss)
 
 # The test data is 5 times the length of the training data, at equally-spaced points from [0,5]
 x_test = torch.linspace(0, 2*y_train.size(
-    dim=0) * sample_rate, 500)
+    dim=0) * sample_rate, 1000)
 
-# Put the model into evaluation mode
-model.eval()
-likelihood.eval()
 
-with torch.no_grad(), gpytorch.settings.fast_pred_var():
-    # Obtain the predictibe mean and covariance matrix
-    f_preds = model(x_test)
-    f_mean = f_preds.mean
-    f_cov = f_preds.covariance_matrix
+observed_pred = convenience_functions.predict(model, likelihood, test_x=x_test)
+convenience_functions.plot(x_train, y_train, observed_pred, x_test)
 
-    # Make predictions by feeding model through likelihood
-    observed_pred = likelihood(model(x_test))
-
-    # Initialise plot
-    f, ax = plt.subplots(1, 1, figsize=(8, 6))
-    # Get upper and lower confidence bounds
-    lower, upper = observed_pred.confidence_region()
-    # Plot training data as black stars
-    ax.plot(x_train.numpy(), y_train.numpy(), 'k*')
-    # Plot predictive means as blue line
-    ax.plot(x_test.numpy(), observed_pred.mean.numpy(), 'b')
-    # Shade between the lower and upper confidence bounds
-    ax.fill_between(x_test.numpy(), lower.numpy(), upper.numpy(), alpha=0.5)
-    ax.set_ylim([-3, 3])
-    ax.legend(['Observed Data', 'Mean', 'Confidence'])
-    plt.show()
+for param_name, param in model.named_parameters():
+    print(f'Parameter name: {param_name:42} value = {param}')
+print(model.cov)
+convenience_functions.plot_spectral_density(
+    model.spectral_density(model.cov))
+plot_model_kernel()
+print(model.cov.mixture_means.detach().reshape(-1, 1))

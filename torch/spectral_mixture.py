@@ -1,4 +1,5 @@
 import numpy as np
+import math
 import torch
 from matplotlib import pyplot as plt
 import scipy.io.wavfile as wav
@@ -25,38 +26,36 @@ def plot_spectral_density(density: MixtureSameFamily) -> None:
     plt.show()
 
 
-# Wav file method
-wav_file = '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/wav_files/tuner_440.wav'
+x_train = torch.linspace(0, 50, 1, dtype=torch.float)
+y_train = torch.sin(2 * math.pi * x_train) + torch.sin(6 * math.pi * x_train)
 
-# Read a Wav file
-sample_rate, y_train = wav.read(wav_file)
-y_train = torch.from_numpy(y_train[:300])
-x_train = torch.linspace(0, y_train.size(
-    dim=0) * sample_rate, y_train.size(dim=0))
+# likelihood = gpytorch.likelihoods.GaussianLikelihood(
+#     noise_constraint=gpytorch.constraints.GreaterThan(1e-6))
+# model = SpectralMixtureGP(x_train, y_train, likelihood)
 
-x2_train = torch.arange(0, 50, 1)
-# Initialise the likelihood and model
+# print(model.cov)
+# x_train = torch.linspace(0, y_train.size(
+#     dim=0) * sample_rate, y_train.size(dim=0))
 
-
-likelihood = gpytorch.likelihoods.GaussianLikelihood(
-    noise_constraint=gpytorch.constraints.GreaterThan(1e-6))
+# x2_train = torch.arange(0, 50, 1)
+# # Initialise the likelihood and model
 
 
-model = SpectralMixtureGP(x2_train, x_train, likelihood)
-for param_name, param in model.named_parameters():
-    print(f'Parameter name: {param_name:42} value = {param}')
+# model.initialize_from_data_empspect(x_train, y_train)
+# for param_name, param in model.named_parameters():
+#     print(f'Parameter name: {param_name:42} value = {param}')
 
-hypers = {
-    'likelihood.noise_covar.noise': torch.tensor(100),
-    'covar_module.outputscale': torch.tensor(2.),
-    # 'covar_module.outputscale': torch.tensor(2.),
-}
-plot_spectral_density(model.spectral_density(model.cov))
-model.initialize(**hypers)
-print(
-    model.likelihood.noise_covar.noise,
-    model.covar_module.outputscale.item()
-)
-for param_name, param in model.named_parameters():
-    print(f'Parameter name: {param_name:42} value = {param}')
-plot_spectral_density(model.spectral_density(model.cov))
+# hypers = {
+#     'likelihood.noise_covar.noise': torch.tensor(100),
+#     'covar_module.outputscale': torch.tensor(2.),
+#     # 'covar_module.outputscale': torch.tensor(2.),
+# }
+# plot_spectral_density(model.spectral_density(model.cov))
+# model.initialize(**hypers)
+# print(
+#     model.likelihood.noise_covar.noise,
+#     model.covar_module.outputscale.item()
+# )
+# for param_name, param in model.named_parameters():
+#     print(f'Parameter name: {param_name:42} value = {param}')
+# plot_spectral_density(model.spectral_density(model.cov))
