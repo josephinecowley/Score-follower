@@ -1,15 +1,15 @@
 import numpy as np
 import scipy.io.wavfile as wav
 import matplotlib.pyplot as plt
-from scipy.fft import fft, fftfreq
+from scipy.optimize import minimize
 
 import helper
 
 # Training data
-wav_file = '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/wav_files/A_440_piano.wav'
+wav_file = '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/wav_files/tuner_440.wav'
 sample_rate, data = wav.read(wav_file)
 # Truncate data to 700 samples long
-data = data[500:900]
+data = data[500:700]
 audio_duration = len(data)/sample_rate
 time_samples = np.linspace(0, audio_duration, len(data))
 
@@ -39,9 +39,23 @@ T_test = np.linspace(0, audio_duration*1.5, 400)
 # Plotting posterior
 # ---------------------
 
-mu_s, cov_s = helper.posterior(
-    T_test, time_samples, data, M=8, f=[440], sigma_f=20)
+# mu_s, cov_s = helper.posterior(
+#     T_test, time_samples, data, M=8, f=[440], sigma_f=20)
 
-mu = np.zeros(len(T_test))
-helper.plot_gp(mu_s, cov_s, T_test, T_train=time_samples,
-               Y_train=data, samples=4)
+# mu = np.zeros(len(T_test))
+# helper.plot_gp(mu_s, cov_s, T_test, T_train=time_samples,
+#                Y_train=data, samples=4)
+
+# ---------------------
+# Calculating likelihoods
+# ---------------------
+
+print(helper.stable_nlml(time_samples, data, f=[20]))
+
+# ---------------------
+# Optimising parameters (WIP)
+# ---------------------
+# res = minimize(helper.nlml_fn(time_samples, data), [440, 20, 1e-2],
+#                bounds=((1e-5, None), (1e-5, None)),
+#                method='L-BFGS-B')
+# f_opt, sigma_f_opt, sigma_n_opt = res.x
