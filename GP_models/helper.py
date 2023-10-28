@@ -18,13 +18,54 @@ import scipy.io.wavfile as wavf
 # ----------------------------------------------------------
 
 def plot_audio(T, data):
+    """
+    Visualise audio data.
+
+    Args:
+        T: 1D numpy array of time samples.
+        data: 1D numpy array of corresponding audio amplitudes.
+
+    Returns:
+        Nothing. Simply plots a grah of the audio sample. 
+    """
     plt.plot(T, data)
-    # Add labels to the X and Y axes
     plt.xlabel("Time (seconds)")
     plt.ylabel("Amplitude")
-
-    # Add a title to the plot
     plt.title("Plot of audio wave")
+    plt.show()
+
+
+def plot_kernel_matrix(kernel_matrix):
+    """
+    Visualise kernel matrix.
+
+    Args:
+        kernel_matrix: a matrix.
+
+    Returns:
+        Plot of matrix in heat map. 
+    """
+    plt.imshow(kernel_matrix, cmap='coolwarm', interpolation='nearest')
+    plt.title("Covariance Matrix Heatmap")
+    plt.colorbar()
+    plt.show()
+
+
+def plot_kernel(T, kernel):
+    """
+    Visualise kernel function.
+
+    Args:
+        T: Time samples which have been inputs to the kernel function.
+        kernel: Corresponding kernel outputs. 
+
+    Returns:
+        Plot of kerne function. 
+    """
+    plt.plot(T, kernel)
+    plt.xlabel("Time (seconds)")
+    plt.ylabel("Kernel value")
+    plt.title("Plot of kernel function")
     plt.show()
 
 
@@ -87,6 +128,7 @@ def SM_kernel(t1, t2, M=6, f=[440], sigma_f=1e-5):
     TODO add weights k
     TODO add variance changes across Qs and Ms
     """
+    v = 0.5
     cosine_series = 0
     for fundamental_frequency in f:
         for m in range(M):
@@ -95,7 +137,63 @@ def SM_kernel(t1, t2, M=6, f=[440], sigma_f=1e-5):
     return np.exp(-(sigma_f**2) * 2 * np.pi**2 * np.linalg.norm(t1 - t2)**2) * cosine_series
 
 
-def SM_kernel_matrix(T1, T2=None, M=6, f=[440], sigma_f=1e-5):
+def return_SM_kernel(T, show=False, M=6, f=[440], sigma_f=1e-5):
+    """
+    Return kernel function.
+    Automatically does not show function, unless show=True.
+
+    Args:
+        T: 1D numpy array of time samples.
+        show: If True, also display kernel function. If False, only return kernel.
+
+    Returns:
+        Kernel values of T as numpy array. 
+    """
+    kernel = np.zeros(len(T))
+    for i in range(len(T)):
+        kernel[i] = SM_kernel(0, T[i], M=M, f=f, sigma_f=sigma_f)
+    if show is False:
+        return kernel
+    plot_kernel(T, kernel)
+    return kernel
+
+
+def return_SM_kernel_matrix(T1, T2=None, M=6, f=[440], sigma_f=1e-5, show=False):
+    """
+    Compute the Spectral Mixture kernel matrix between two sets of vectors.
+    If T2 is None, find matrix between T1 and T1.
+    Automatically does not show matrix, unless show=True.
+
+    Args:
+        T1: Array of 1D time samples of length n1.
+        T2: Array of 1D time samples of length n2.
+        show: if True, plot heat map of covariance function.
+
+    Returns:
+        Matrix (n1, n2) of scalars from SM kernel.TODO check this retirns thjezse dimensions
+    """
+    if T2 is None:
+        T2 = T1
+
+    n1 = len(T1)
+    n2 = len(T2)
+
+    kernel_matrix = np.zeros((n1, n2))
+
+    for i in range(n1):
+        for j in range(n2):
+            t1 = T1[i]
+            t2 = T2[j]
+
+            kernel_matrix[i, j] = SM_kernel(t1, t2, M=M,  f=f, sigma_f=sigma_f)
+
+    if show is False:
+        return kernel_matrix
+    plot_kernel_matrix(kernel_matrix)
+    return kernel_matrix
+
+
+def SM_kernel_matrix_multidimensional(T1, T2=None, M=6, f=[440], sigma_f=1e-5):
     """
     Compute the Spectral Mixture kernel matrix between two sets of vectors.
     If T2 is None, find matrix between T1 and T1.
