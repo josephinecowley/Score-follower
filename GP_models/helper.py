@@ -153,11 +153,11 @@ def return_gaussian(mu, sig, max_freq=5000, show=False, no_samples=10000):
 def return_kernel_spectrum(f=[440], M=6, sigma_f=10, show=False, max_freq=2000, no_samples=10000):
     f_spectrum = np.linspace(0, max_freq, no_samples)
     output = np.zeros(len(f_spectrum))
-    v = 0.02
+    v = 3.6
     for fundamental_frequency in f:
         for m in range(M):
-            output += (1/(1+((1/fundamental_frequency)*(m+1))**v)) * return_gaussian(fundamental_frequency *
-                                                                                     (m+1), sigma_f, max_freq=max_freq, no_samples=no_samples)
+            output += np.exp(-v*m) * return_gaussian(fundamental_frequency *
+                                                     (m+1), sigma_f, max_freq=max_freq, no_samples=no_samples)
     if show is False:
         return output, f_spectrum
     plt.plot(f_spectrum, output)
@@ -186,12 +186,12 @@ def SM_kernel(t1, t2, M=6, f=[440], sigma_f=1e-5):
     TODO add weights k
     TODO add variance changes across Qs and Ms
     """
-    v = 0.5
+    v = 3.6
     cosine_series = 0
     for fundamental_frequency in f:
         for m in range(M):
-            cosine_series += (1/(1+((1/fundamental_frequency)*(m+1))**v)) * np.cos((m+1) * 2 * np.pi *
-                                                                                   fundamental_frequency * np.linalg.norm(t1 - t2))
+            cosine_series += np.exp(-v*m) * np.cos((m+1) * 2 * np.pi *
+                                                   fundamental_frequency * np.linalg.norm(t1 - t2))
     return np.exp(-(sigma_f**2) * 2 * np.pi**2 * np.linalg.norm(t1 - t2)**2) * cosine_series
 
 
