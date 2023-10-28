@@ -4,6 +4,7 @@ from matplotlib import pyplot as plt
 import torch
 import gpytorch
 from models import SpectralMixtureGP
+import convenience_functions
 
 from torch.distributions.mixture_same_family import MixtureSameFamily
 from torch.distributions.categorical import Categorical
@@ -35,25 +36,8 @@ model = SpectralMixtureGP(x_train, y_train, likelihood)
 model.train()
 likelihood.train()
 
-# Use the Adam optimiser, with learning rate set to 0.1
-optimiser = torch.optim.Adam(model.parameters(), lr=0.1)
-
-# Use the negative marhinal log-likelihood as the loss function
-mll = gpytorch.mlls.ExactMarginalLogLikelihood(likelihood, model)
-
-# Set the number of training iterations
-n_iter = 50
-
-for i in range(n_iter):
-    # Set the gradients from previous iteration to zero
-    optimiser.zero_grad()
-    # Ouput from the model
-    output = model(x_train)
-    # Compute loss and backprop gradients
-    loss = -mll(output, y_train)
-    loss.backward()
-    print('Iter %d/%d - Loss: %.3f' % (i + 1, n_iter, loss.item()))
-    optimiser.step()
+convenience_functions.train(x_train, y_train, model,
+                            likelihood, training_iter=50)
 
 
 # Making predictions with the model
