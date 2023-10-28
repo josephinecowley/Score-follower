@@ -137,10 +137,9 @@ def gaussian_function(x, mu, sig):
     return 1.0 / (np.sqrt(2.0 * np.pi) * sig) * np.exp(-np.power((x - mu) / sig, 2.0) / 2)
 
 
-def return_gaussian(mu, sig, max_freq=5000, show=False):
-    max_freq = max_freq
+def return_gaussian(mu, sig, max_freq=5000, show=False, no_samples=10000):
     # Note the value of the number of samples affects the seen amplitudes (resolution may be too low!)
-    f_spectrum = np.linspace(0, max_freq, 10000)
+    f_spectrum = np.linspace(0, max_freq, no_samples)
     output = np.zeros(len(f_spectrum))
     for i in range(len(output)):
         output[i] = gaussian_function(f_spectrum[i], mu=mu, sig=sig)
@@ -151,16 +150,19 @@ def return_gaussian(mu, sig, max_freq=5000, show=False):
     return output
 
 
-def return_kernel_spectrum(f=[440], M=6, sigma_f=10, show=False):
-    f_spectrum = np.linspace(0, 2000, 10000)
+def return_kernel_spectrum(f=[440], M=6, sigma_f=10, show=False, max_freq=2000, no_samples=10000):
+    f_spectrum = np.linspace(0, max_freq, no_samples)
     output = np.zeros(len(f_spectrum))
+    v = 0.02
     for fundamental_frequency in f:
         for m in range(M):
-            output += return_gaussian(fundamental_frequency*(m+1), sigma_f)
+            output += (1/(1+((1/fundamental_frequency)*(m+1))**v)) * return_gaussian(fundamental_frequency *
+                                                                                     (m+1), sigma_f, max_freq=max_freq, no_samples=no_samples)
     if show is False:
         return output, f_spectrum
     plt.plot(f_spectrum, output)
-    plt.show()
+    return output, f_spectrum
+
 
 # ----------------------------------------------------------
 # Helper kernel functions and matrices
