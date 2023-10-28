@@ -274,7 +274,7 @@ def RBF_kernel(X1, X2, l=1.0, sigma_f=1.0):
 # ----------------------------------------------------------
 
 
-def nlml(T, Y, M=10, sigma_f=100, frequencies=[400], noise=1e-5):
+def nlml(T, Y, cov_s=None, M=10, sigma_f=100, f=[400], sigma_n=1e-2):
     """
     Return Negative Log Marginal Likelihood.
     Assumes zero mean, and does not add noise to ensure positive definite covariance matrix.
@@ -287,12 +287,15 @@ def nlml(T, Y, M=10, sigma_f=100, frequencies=[400], noise=1e-5):
         Value of Negative Log Marginal Likelihood.
     """
     Y = Y.ravel()
-    K = return_SM_kernel_matrix(T, T, M=M, sigma_f=sigma_f, frequencies=frequencies) + \
-        noise**2 * np.eye(len(T))
+    if cov_s is None:
+        K = return_SM_kernel_matrix(T, T, M=M, sigma_f=sigma_f, f=f) + \
+            sigma_n**2 * np.eye(len(T))
+    else:
+        K = cov_s + sigma_n**2 * np.eye(len(T))
     return 0.5 * Y.dot(inv(K).dot(Y)) + 0.5 * np.log(det(K)) + 0.5 * len(T) * np.log(2*np.pi)
 
 
-def stable_nlml(T, Y, M=6, sigma_f=1e-5, f=[440], sigma_n=1e-5):
+def stable_nlml(T, Y,  M=8, sigma_f=20, f=[440], sigma_n=1e-2):
     """
     Return Negative Log Marginal Likelihood via stable method.
     Assumes zero mean.
@@ -324,14 +327,14 @@ def stable_nlml(T, Y, M=6, sigma_f=1e-5, f=[440], sigma_n=1e-5):
 # ----------------------------------------------------------
 
 
-def posterior(X_s, X_train, Y_train, M=8, sigma_f=20, sigma_y=1e-2, f=[440]):
+def posterior(T_test, T_train, Y_train, M=8, sigma_f=20, sigma_y=1e-2, f=[440]):
     """
     Computes the sufficient statistics of the posterior distribution 
-    from m training data X_train and Y_train and n new inputs X_s.
+    from m training data T_train and Y_train and n new inputs T_test.
 
     Args:
-        X_s: New input locations (n x d).
-        X_train: Training locations (m x d).
+        T_test: New input locations (n x d).
+        T_train: Training locations (m x d).
         Y_train: Training targets (m x 1).
         M: Number of partials.
         sigma: Kernel vertical variation parameter.
@@ -340,12 +343,12 @@ def posterior(X_s, X_train, Y_train, M=8, sigma_f=20, sigma_y=1e-2, f=[440]):
     Returns:
         Posterior mean vector (n x d) and covariance matrix (n x n).
     """
-    K = return_SM_kernel_matrix(X_train, X_train, M=M, sigma_f=sigma_f, f=f) + \
-        sigma_y**2 * np.eye(len(X_train))
+    K = return_SM_kernel_matrix(T_train, T_train, M=M, sigma_f=sigma_f, f=f) + \
+        sigma_y**2 * np.eye(len(T_train))
     K_s = return_SM_kernel_matrix(
-        X_train, X_s, M=M, sigma_f=sigma_f, f=f)
+        T_train, T_test, M=M, sigma_f=sigma_f, f=f)
     K_ss = return_SM_kernel_matrix(
-        X_s, X_s, M=M, sigma_f=sigma_f, f=f) + 1e-8 * np.eye(len(X_s))
+        T_test, T_test, M=M, sigma_f=sigma_f, f=f) + 1e-8 * np.eye(len(T_test))
     K_inv = inv(K)
 
     # Calculate posterior mean function
@@ -399,7 +402,7 @@ def golden_section(x1, x2, X_train, Y_train, M, sigma, tol=1, integer_search=Fal
     return x3
 
 
-def nll_fn(X_train, Y_train, sigma_n, naive=True):
+def nlml_fn(X_train, Y_train, M=8, naive=False):
     """
     Returns a function that computes the negative log marginal
     likelihood for training data X_train and Y_train and given
@@ -429,8 +432,8 @@ def nll_fn(X_train, Y_train, sigma_n, naive=True):
         # Naive implementation of Eq. (11). Works well for the examples
         # in this article but is numerically less stable compared to
         # the implementation in nll_stable below.
-        K = SM_kernel_matrix(X_train, X_train, l=theta[0], sigma_f=theta[1]) + \
-            sigma_n**2 * np.eye(len(X_train))
+        K = return_SM_kernel_matrix(X_train, X_train, M=8, f=[theta[0]], sigma_f=theta[1]) + \
+            theta[2]**2 * np.eye(len(X_train))
         return 0.5 * np.log(det(K)) + \
             0.5 * Y_train.dot(inv(K).dot(Y_train)) + \
             0.5 * len(X_train) * np.log(2*np.pi)
@@ -440,8 +443,8 @@ def nll_fn(X_train, Y_train, sigma_n, naive=True):
         # in http://www.gaussianprocess.org/gpml/chapters/RW2.pdf, Section
         # 2.2, Algorithm 2.1.
 
-        K = SM_kernel_matrix(X_train, X_train, l=theta[0], sigma_f=theta[1]) + \
-            sigma_n**2 * np.eye(len(X_train))
+        K = return_SM_kernel_matrix(X_train, X_train, M=8, f=[theta[0]], sigma_f=theta[1]) + \
+            theta[2]**2 * np.eye(len(X_train))
         L = cholesky(K)
 
         S1 = solve_triangular(L, Y_train, lower=True)
