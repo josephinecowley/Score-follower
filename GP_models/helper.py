@@ -49,11 +49,12 @@ def plot_fft(data, sample_rate=44100, power_spectrum=False, colour='r'):
     else:
         fft_data = np.sqrt(abs(fft(data, norm="ortho")))
     frequency_axis = fftfreq(len(data), d=1.0/sample_rate)
-    plt.plot(frequency_axis[:len(data)//2], fft_data[:len(data)//2], colour)
+    plt.plot(frequency_axis[:(len(data)//8)],
+             fft_data[:(len(data)//8)], colour)
     plt.xlabel('Frequency[Hz]')
     plt.ylabel('Amplitude')
     plt.title('Spectrum')
-    return fft_data[:len(data)//2]
+    return fft_data[:(len(data)//8)]
 
 
 def plot_kernel(T, kernel):
@@ -156,7 +157,7 @@ def return_gaussian(mu, sig, max_freq=5000, show=False, no_samples=10000):
 def return_kernel_spectrum(f=[440], M=6, sigma_f=10, show=False, max_freq=2000, no_samples=10000):
     f_spectrum = np.linspace(0, max_freq, no_samples)
     output = np.zeros(len(f_spectrum))
-    v = 3.6
+    v = 3
     for fundamental_frequency in f:
         for m in range(M):
             output += np.exp(-v*m) * return_gaussian(fundamental_frequency *
@@ -327,7 +328,7 @@ def stable_nlml(T, Y,  M=8, sigma_f=20, f=[440], sigma_n=1e-2):
 # ----------------------------------------------------------
 
 
-def posterior(T_test, T_train, Y_train, M=8, sigma_f=20, sigma_y=1e-2, f=[440]):
+def posterior(T_test, T_train, Y_train, M=8, sigma_f=20, sigma_y=0.005, f=[440]):
     """
     Computes the sufficient statistics of the posterior distribution 
     from m training data T_train and Y_train and n new inputs T_test.
