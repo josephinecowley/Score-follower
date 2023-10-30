@@ -164,12 +164,12 @@ plt.show()
 noise = 0.0005
 
 
-# mu_s, cov_s = posterior(X, X_train, Y_train, M=30,
-#                         sigma_y=noise, frequencies=[440])
+mu_s, cov_s = posterior(X, X_train, Y_train, M=30,
+                        sigma_y=noise, frequencies=[440])
 # plot_frequency_response(mu_s, Y_train, sample_rate)
 # # # samples = np.random.multivariate_normal(mu_s.ravel(), cov_s, 3)
-# plot_gp(mu_s, cov_s, X, X_train=X_train, Y_train=Y_train)
-# plt.show()
+plot_gp(mu_s, cov_s, X, X_train=X_train, Y_train=Y_train)
+plt.show()
 
 
 # # Plot covariance function - prior
