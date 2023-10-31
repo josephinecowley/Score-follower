@@ -3,6 +3,14 @@ import matplotlib.pyplot as plt
 import scipy.io.wavfile as wav
 import helper
 import numpy as np
+from librosa import note_to_hz as hz
+
+# scale_freqs = [[262], [294], [330], [349], [392], [440], [494], [523]]
+scale_freqs = hz([['C4'], ['D4'], ['E4'], ['F4'],
+                 ['G4'], ['A4'], ['B4'], ['C5']])
+beethoven_freqs = hz([['E4', 'G#4', 'B4', 'E5', 'G#5'], [
+                     'B#3', 'D#4', 'F#4', 'A4', 'D#5', 'F#5']])
+print(beethoven_freqs)
 
 
 wav_file = '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/wav_files/scale.wav'
@@ -25,4 +33,5 @@ for i in range(len(onset_time_samples)):
     print(int(onset_time_samples[i]))
     sample_data.append(data[int(onset_time_samples[i]):int(onset_time_samples[i])+10000])
     helper.plot_fft(sample_data[i], sample_rate)
+    helper.return_kernel_spectrum(f=scale_freqs[i], show=True, scalar=50)
     plt.show()
