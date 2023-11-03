@@ -12,12 +12,14 @@ from scipy.fft import fft
 from scipy.fft import fftfreq
 import scipy.io.wavfile as wavf
 
+import inharmonicity
+
 
 # ----------------------------------------------------------
 # Helper plotting functions
 # ----------------------------------------------------------
 
-def plot_audio(T, data):
+def plot_audio(T, data, show=False):
     """
     Visualise audio data.
 
@@ -28,11 +30,12 @@ def plot_audio(T, data):
     Returns:
         Nothing. Simply plots a grah of the audio sample. 
     """
-    plt.plot(T, data)
+    plt.plot(T, data, 'r')
     plt.xlabel("Time (seconds)")
     plt.ylabel("Amplitude")
     plt.title("Plot of audio wave")
-    plt.show()
+    if show is True:
+        plt.show()
 
 
 def plot_fft(data, sample_rate=44100, power_spectrum=False, colour='r'):
@@ -46,15 +49,15 @@ def plot_fft(data, sample_rate=44100, power_spectrum=False, colour='r'):
     """
     if power_spectrum is False:
         fft_data = abs(fft(data, norm="ortho"))
+
     else:
         fft_data = np.sqrt(abs(fft(data, norm="ortho")))
     frequency_axis = fftfreq(len(data), d=1.0/sample_rate)
     plt.plot(frequency_axis[:(len(data)//8)],
-             fft_data[:(len(data)//8)], colour)
+             fft_data[:(len(data)//8)], colour, label='Audio')
     plt.xlabel('Frequency[Hz]')
     plt.ylabel('Amplitude')
     plt.title('Spectrum')
-    return fft_data[:(len(data)//8)]
 
 
 def plot_kernel(T, kernel):
@@ -154,17 +157,34 @@ def return_gaussian(mu, sig, max_freq=5000, show=False, no_samples=10000):
     return output
 
 
-def return_kernel_spectrum(f=[440], M=6, sigma_f=10, show=False, max_freq=2000, no_samples=10000):
+def return_kernel_spectrum(f=[440], M=6, sigma_f=10, show=False, max_freq=5000, no_samples=10000, scalar=1):
     f_spectrum = np.linspace(0, max_freq, no_samples)
     output = np.zeros(len(f_spectrum))
-    v = 3
+    v = 1.4
+    T = 1.5
+    vertical_lines = []
     for fundamental_frequency in f:
         for m in range(M):
-            output += np.exp(-v*m) * return_gaussian(fundamental_frequency *
-                                                     (m+1), sigma_f, max_freq=max_freq, no_samples=no_samples)
+            B = inharmonicity.B[int(fundamental_frequency)]
+            inharmonicity_const = np.sqrt((1 + B * (m+1)**2))
+            output += scalar*1/(1 + (T*(m+1))**v) * return_gaussian(fundamental_frequency *
+                                                                    (m+1) * inharmonicity_const, sigma_f, max_freq=max_freq, no_samples=no_samples)
+            vertical_lines.append(fundamental_frequency*(m+1))
+    for i, point in enumerate(vertical_lines):
+        plt.axvline(x=point, color='pink', linestyle='--')
+        plt.text(point, 0.85*max(plt.ylim()),
+                 f'M={i}', va='bottom', rotation='vertical')
     if show is False:
+        plt.plot(f_spectrum, output, label='kernel')
+        # Add a legend
+        # Add an information box in the top-left corner
+        plt.text(0.8, 1.1, f'T = {T} \nv={v}', transform=plt.gca().transAxes,
+                 fontsize=12, color='black', verticalalignment='top')
+        plt.legend()
+
         return output, f_spectrum
     plt.plot(f_spectrum, output)
+    plt.show()
     return output, f_spectrum
 
 
@@ -190,12 +210,14 @@ def SM_kernel(t1, t2, M=6, f=[440], sigma_f=1e-5):
     TODO add weights k
     TODO add variance changes across Qs and Ms
     """
-    v = 3.6
+    v = 0.5
     cosine_series = 0
     for fundamental_frequency in f:
         for m in range(M):
-            cosine_series += np.exp(-v*m) * np.cos((m+1) * 2 * np.pi *
-                                                   fundamental_frequency * np.linalg.norm(t1 - t2))
+            B = inharmonicity.B[int(fundamental_frequency)]
+            inharmonicity_const = np.sqrt((1 + B * (m+1)**2))
+            cosine_series += 1/(1 + (T*(m+1))**v) * np.cos((m+1) * 2 * np.pi *
+                                                           fundamental_frequency * inharmonicity_const * np.linalg.norm(t1 - t2))
     return np.exp(-(sigma_f**2) * 2 * np.pi**2 * np.linalg.norm(t1 - t2)**2) * cosine_series
 
 
@@ -365,10 +387,10 @@ def posterior(T_test, T_train, Y_train, M=8, sigma_f=20, sigma_y=0.005, f=[440])
 # ----------------------------------------------------------
 
 
-def golden_section(x1, x2, X_train, Y_train, M, sigma, tol=1, integer_search=False):
+def golden_section(x1, x2, X_train, Y_train, M=8, sigma=1e-2, tol=1, integer_search=False):
     # Initial points
-    f1 = stable_nlml(X_train, Y_train, M, sigma, frequencies=[x1])
-    f2 = stable_nlml(X_train, Y_train, M, sigma, frequencies=[x2])
+    f1 = nlml(X_train, Y_train, M, sigma, f=[x1])
+    f2 = nlml(X_train, Y_train, M, sigma, f=[x2])
 
     # Set up golden ratios
     r = (np.sqrt(5)-1)/2.0
@@ -378,7 +400,7 @@ def golden_section(x1, x2, X_train, Y_train, M, sigma, tol=1, integer_search=Fal
         x3 = x1 * (1-r) + x2 * r
     else:
         x3 = int(x1 * (1-r) + x2 * r)
-    f3 = stable_nlml(X_train, Y_train, M, sigma, frequencies=[x3])
+    f3 = nlml(X_train, Y_train, M, sigma, f=[x3])
 
     # Loop until convergence
     while abs(x1-x2) > tol:
@@ -387,8 +409,8 @@ def golden_section(x1, x2, X_train, Y_train, M, sigma, tol=1, integer_search=Fal
             x4 = x1 * r + x2 * (1-r)
         else:
             x4 = int(x1 * r + x2 * (1-r))
-        f4 = stable_nlml(
-            X_train, Y_train, M, sigma, frequencies=[x4])
+        f4 = nlml(
+            X_train, Y_train, M, sigma, f=[x4])
         print(f4, '/n', x3)
         if f4 < f3:
             x2 = x3
@@ -433,7 +455,7 @@ def nlml_fn(X_train, Y_train, M=8, naive=False):
         # Naive implementation of Eq. (11). Works well for the examples
         # in this article but is numerically less stable compared to
         # the implementation in nll_stable below.
-        K = return_SM_kernel_matrix(X_train, X_train, M=8, f=[theta[0]], sigma_f=theta[1]) + \
+        K = return_SM_kernel_matrix(X_train, X_train, M=M, f=[theta[0]], sigma_f=theta[1]) + \
             theta[2]**2 * np.eye(len(X_train))
         return 0.5 * np.log(det(K)) + \
             0.5 * Y_train.dot(inv(K).dot(Y_train)) + \
@@ -444,8 +466,8 @@ def nlml_fn(X_train, Y_train, M=8, naive=False):
         # in http://www.gaussianprocess.org/gpml/chapters/RW2.pdf, Section
         # 2.2, Algorithm 2.1.
 
-        K = return_SM_kernel_matrix(X_train, X_train, M=8, f=[theta[0]], sigma_f=theta[1]) + \
-            theta[2]**2 * np.eye(len(X_train))
+        K = return_SM_kernel_matrix(X_train, X_train, M=M, f=[theta[0]], sigma_f=theta[1]) + \
+            0.0005**2 * np.eye(len(X_train))
         L = cholesky(K)
 
         S1 = solve_triangular(L, Y_train, lower=True)
