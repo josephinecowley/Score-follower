@@ -1,6 +1,6 @@
 from typing import List
 from sharedtypes import NoteInfo
-import mido  # type: ignore
+import mido
 from itertools import chain
 import numpy as np
 import matplotlib.pyplot as plt
@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 def process_midi_to_note_info(midi_path: str) -> List[NoteInfo]:
     """
-    https://github.com/flippy-fyp/flippy-quantitative-testbench/blob/main/midi.py
+    Function to process a MIDI file into a notes vs time format
     """
     mid = mido.MidiFile(midi_path)
     ret = process_MidiFile(mid)
@@ -60,24 +60,3 @@ def process_track(
                     )
                 )
     return ret
-
-
-mid = mido.MidiFile(
-    '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/midi_files/waldstein_1.midi')
-tempo = get_tempo(mid.tracks[0])
-track1 = mid.tracks[1]
-track_midi_note_info_ticks = [
-    process_track(track, mid.ticks_per_beat, tempo) for track in mid.tracks
-]
-notes = process_midi_to_note_info(
-    '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/midi_files/waldstein_1.midi')
-note_numbers = []
-for i in notes:
-    note_numbers.append(i.midi_note_num)
-note_numbers = np.array(note_numbers)
-print(type(note_numbers))
-x = np.arange(len(note_numbers))
-plt.plot(x, note_numbers, 'x')
-plt.show()
-# for track in track1:
-#     print(track)
