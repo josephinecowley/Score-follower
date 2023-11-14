@@ -324,6 +324,7 @@ def improved_SM_kernel(X1, X2, M=16, f=[440], sigma_f=5, show=False, B=None, T=N
 
     Returns:
         (m x n) matrix.
+    TODO add check to see that vector elements are 1D
     """
     if v is None:
         v = 2.37
@@ -333,7 +334,8 @@ def improved_SM_kernel(X1, X2, M=16, f=[440], sigma_f=5, show=False, B=None, T=N
     sqdist = np.sum(X1**2, 1).reshape(-1, 1) + \
         np.sum(X2**2, 1) - 2 * np.dot(X1, X2.T)
 
-    cosine_series = np.zeros((X1.shape[0], X1.shape[0]))
+    cosine_series = np.zeros((X1.shape[0], X2.shape[0]))
+    print(cosine_series.shape)
 
     # Make 1D (this should be fine since we are dealing with only one dimension)
     X1_1D = X1.flatten()
@@ -442,11 +444,13 @@ def posterior(T_test, T_train, Y_train, M=14, sigma_f=0.2, sigma_y=0.005, f=[440
     Returns:
         Posterior mean vector (n x d) and covariance matrix (n x n).
     """
-    K = return_SM_kernel_matrix(T_train, T_train, M=M, sigma_f=sigma_f, f=f, B=B, T=T, v=v) + \
+    T_train = T_train.reshape(-1, 1)
+    T_test = T_test.reshape(-1, 1)
+    K = improved_SM_kernel(T_train, T_train, M=M, sigma_f=sigma_f, f=f, B=B, T=T, v=v) + \
         sigma_y**2 * np.eye(len(T_train))
-    K_s = return_SM_kernel_matrix(
+    K_s = improved_SM_kernel(
         T_train, T_test, M=M, sigma_f=sigma_f, f=f, B=B, T=T, v=v)
-    K_ss = return_SM_kernel_matrix(
+    K_ss = improved_SM_kernel(
         T_test, T_test, M=M, sigma_f=sigma_f, f=f, B=B, T=T, v=v) + 1e-8 * np.eye(len(T_test))
     K_inv = inv(K)
 
