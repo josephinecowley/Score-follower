@@ -10,7 +10,10 @@ from scipy.linalg import solve_triangular
 from scipy.optimize import golden
 from scipy.fft import fft
 from scipy.fft import fftfreq
+from scipy.signal.windows import hann, hamming
 import scipy.io.wavfile as wavf
+from tqdm import tqdm
+
 
 import inharmonicity
 
@@ -19,7 +22,7 @@ import inharmonicity
 # Helper plotting functions
 # ----------------------------------------------------------
 
-def plot_audio(T, data, show=False):
+def plot_audio(T, data, show=False, title="Plot of audio wave"):
     """
     Visualise audio data.
 
@@ -33,12 +36,12 @@ def plot_audio(T, data, show=False):
     plt.plot(T, data, 'r')
     plt.xlabel("Time (seconds)")
     plt.ylabel("Amplitude")
-    plt.title("Plot of audio wave")
+    plt.title(title)
     if show is True:
         plt.show()
 
 
-def plot_fft(data, sample_rate=44100, power_spectrum=False, colour='r'):
+def plot_fft(data, sample_rate=44100, power_spectrum=False, title='Spectrum', colour='r'):
     """
     Visualise audio frequency data using DFT.
 
@@ -47,20 +50,21 @@ def plot_fft(data, sample_rate=44100, power_spectrum=False, colour='r'):
     Returns:
         Returns positive fft data and plots a grah of positive values of the audio spectrum. 
     """
+    w = hann(len(data))
     if power_spectrum is False:
-        fft_data = abs(fft(data, norm="ortho"))
+        fft_data = abs(fft(data*w, norm="ortho"))
 
     else:
-        fft_data = np.sqrt(abs(fft(data, norm="ortho")))
+        fft_data = np.sqrt(abs(fft(data*w, norm="ortho")))
     frequency_axis = fftfreq(len(data), d=1.0/sample_rate)
     plt.plot(frequency_axis[:(len(data)//8)],
              fft_data[:(len(data)//8)], colour, label='Audio')
     plt.xlabel('Frequency[Hz]')
     plt.ylabel('Amplitude')
-    plt.title('Spectrum')
+    plt.title(title)
 
 
-def plot_kernel(T, kernel):
+def plot_kernel(T, kernel, title="Spectrum of Kernel"):
     """
     Visualise kernel function.
 
@@ -74,11 +78,11 @@ def plot_kernel(T, kernel):
     plt.plot(T, kernel)
     plt.xlabel("Time (seconds)")
     plt.ylabel("Kernel value")
-    plt.title("Plot of kernel function")
+    plt.title(title)
     plt.show()
 
 
-def plot_kernel_matrix(kernel_matrix):
+def plot_kernel_matrix(kernel_matrix, title="Covariance Matrix Heatmap"):
     """
     Visualise kernel matrix.
 
@@ -89,12 +93,12 @@ def plot_kernel_matrix(kernel_matrix):
         Plot of matrix in heat map. 
     """
     plt.imshow(kernel_matrix, cmap='coolwarm', interpolation='nearest')
-    plt.title("Covariance Matrix Heatmap")
+    plt.title(title)
     plt.colorbar()
     plt.show()
 
 
-def plot_gp(mu, cov, T_test, T_train=None, Y_train=None, samples=0):
+def plot_gp(mu, cov, T_test, T_train=None, Y_train=None, samples=None, title="GP"):
     """
     Plot the Gaussian Process (GP).
 
@@ -119,20 +123,23 @@ def plot_gp(mu, cov, T_test, T_train=None, Y_train=None, samples=0):
     plt.plot(T_test, mu, label='Mean')
 
     # Generate and plot random samples
-    for i in range(samples):
-        # Draw three samples from the prior
-        z = np.random.randn(len(T_test), 1).ravel()
-        # Add a small amount of noise to ensure it is ositive definite
-        K = cov + 1e-6 * np.eye(len(T_test))
-        L = np.linalg.cholesky(K)
-        y = np.dot(L.T, z) + mu
-        plt.plot(T_test, y, lw=1, ls='--', label=f'Sample {i+1}')
+    # for i in range(samples):
+    #     # Draw three samples from the prior
+    #     z = np.random.randn(len(T_test), 1).ravel()
+    #     # Add a small amount of noise to ensure it is ositive definite
+    #     K = cov + 1e-6 * np.eye(len(T_test))
+    #     L = np.linalg.cholesky(K)
+    #     y = np.dot(L.T, z) + mu
+    #     plt.plot(T_test, y, lw=1, ls='--', label=f'Sample {i+1}')
+    for i, sample in enumerate(samples):
+        plt.plot(T_test, sample, lw=1, ls='--', label=f'Sample {i+1}')
 
     # Plot training data if required
     if T_train is not None:
         plt.plot(T_train, Y_train, 'rx')
 
     plt.legend()
+    plt.title(title)
     plt.show()
 
 # ----------------------------------------------------------
@@ -157,33 +164,47 @@ def return_gaussian(mu, sig, max_freq=5000, show=False, no_samples=10000):
     return output
 
 
-def return_kernel_spectrum(f=[440], M=6, sigma_f=10, show=False, max_freq=5000, no_samples=10000, scalar=1):
+def return_kernel_spectrum(f=[440], M=12, sigma_f=None, show=False, max_freq=10000, no_samples=10000, amplitude=25, B=None, T=None, v=None):
     f_spectrum = np.linspace(0, max_freq, no_samples)
     output = np.zeros(len(f_spectrum))
-    v = 1.4
-    T = 1.5
+    if v is None:
+        v = 2.37
+    if T is None:
+        T = 0.465
     vertical_lines = []
-    for fundamental_frequency in f:
-        for m in range(M):
-            B = inharmonicity.B[int(fundamental_frequency)]
+    for fundamental_frequency in tqdm(f):
+        plt.axvline(x=fundamental_frequency, color='green', linestyle='--')
+        plt.text(fundamental_frequency, 0.85*max(plt.ylim()),
+                 f'f={fundamental_frequency}', va='bottom', rotation='vertical')
+        if B is None:
+            closest_key = min(inharmonicity.B.keys(), key=lambda key: abs(
+                key - fundamental_frequency))
+            B = inharmonicity.B[closest_key]
+        if sigma_f is None:
+            sigma_f = np.emath.logn(3, fundamental_frequency)
+            print(sigma_f)
+        for m in tqdm(range(M)):
             inharmonicity_const = np.sqrt((1 + B * (m+1)**2))
-            output += scalar*1/(1 + (T*(m+1))**v) * return_gaussian(fundamental_frequency *
-                                                                    (m+1) * inharmonicity_const, sigma_f, max_freq=max_freq, no_samples=no_samples)
+            output += 1/(1 + (T*(m+1))**v) * return_gaussian(fundamental_frequency *
+                                                             (m+1) * inharmonicity_const, sigma_f, max_freq=max_freq, no_samples=no_samples)
             vertical_lines.append(fundamental_frequency*(m+1))
-    for i, point in enumerate(vertical_lines):
-        plt.axvline(x=point, color='pink', linestyle='--')
-        plt.text(point, 0.85*max(plt.ylim()),
-                 f'M={i}', va='bottom', rotation='vertical')
+    # Times by amplitude scalar
+    output = amplitude * output
+    # Add mains hum (we have observed this to be about one 25th of the size)
+    output += amplitude/60 * return_gaussian(52, 5, max_freq=max_freq,
+                                             no_samples=no_samples)
+    plt.plot(f_spectrum, output, label='kernel')
+    if len(f) == 1:
+        for i, point in enumerate(vertical_lines):
+            plt.axvline(x=point, color='pink', linestyle='--')
+            plt.text(point, 0.85*max(plt.ylim()),
+                     f'M={i+1}', va='bottom', rotation='vertical')
+    # Add an information box in the top-left corner
+    plt.text(0.8, 1.15, f'T = {T} \nv={v} \nB={B}', transform=plt.gca().transAxes,
+             fontsize=12, color='black', verticalalignment='top')
+    plt.legend()
     if show is False:
-        plt.plot(f_spectrum, output, label='kernel')
-        # Add a legend
-        # Add an information box in the top-left corner
-        plt.text(0.8, 1.1, f'T = {T} \nv={v}', transform=plt.gca().transAxes,
-                 fontsize=12, color='black', verticalalignment='top')
-        plt.legend()
-
         return output, f_spectrum
-    plt.plot(f_spectrum, output)
     plt.show()
     return output, f_spectrum
 
@@ -193,7 +214,7 @@ def return_kernel_spectrum(f=[440], M=6, sigma_f=10, show=False, max_freq=5000, 
 # ----------------------------------------------------------
 
 
-def SM_kernel(t1, t2, M=6, f=[440], sigma_f=1e-5):
+def SM_kernel(t1, t2, M=16, f=[440], sigma_f=5, B=None, T=None, v=None, amplitude=25):
     """
     Spectral Mixture kernel.
 
@@ -210,39 +231,54 @@ def SM_kernel(t1, t2, M=6, f=[440], sigma_f=1e-5):
     TODO add weights k
     TODO add variance changes across Qs and Ms
     """
-    v = 0.5
+    if v is None:
+        v = 2.37
+    if T is None:
+        T = 0.465
     cosine_series = 0
+
     for fundamental_frequency in f:
+        # Add inharmonicity constant, that depends on each fundamental frequency
+        if B is None:
+            closest_key = min(inharmonicity.B.keys(), key=lambda key: abs(
+                key - fundamental_frequency))
+            B = inharmonicity.B[closest_key]
         for m in range(M):
-            B = inharmonicity.B[int(fundamental_frequency)]
             inharmonicity_const = np.sqrt((1 + B * (m+1)**2))
             cosine_series += 1/(1 + (T*(m+1))**v) * np.cos((m+1) * 2 * np.pi *
                                                            fundamental_frequency * inharmonicity_const * np.linalg.norm(t1 - t2))
-    return np.exp(-(sigma_f**2) * 2 * np.pi**2 * np.linalg.norm(t1 - t2)**2) * cosine_series
+    #  Multiply by amplitude factor
+    cosine_series *= amplitude
+    # Add mains hum (amplitude was found to be 1, so no need to add it)
+    cosine_series += amplitude / 55 * \
+        np.cos(2 * np.pi * 52 * np.linalg.norm(t1 - t2))
+
+    return np.exp(-2 * (sigma_f**2) * np.pi**2 * np.linalg.norm(t1 - t2)**2) * cosine_series
 
 
-def return_SM_kernel(T, show=False, M=6, f=[440], sigma_f=1e-5):
+def return_SM_kernel(time_samples, show=False, M=6, f=[440], sigma_f=5, B=None, T=None, v=None, amplitude=25, title="Kernel Spectrum"):
     """
     Return kernel function.
     Automatically does not show function, unless show=True.
 
     Args:
-        T: 1D numpy array of time samples.
-        show: If True, also display kernel function. If False, only return kernel.
+        time_samples: 1D numpy array of time samples.
+        show: If time_samplesrue, also display kernel function. If False, only return kernel.
 
     Returns:
-        Kernel values of T as numpy array. 
+        Kernel values of time_samples as numpy array. 
     """
-    kernel = np.zeros(len(T))
-    for i in range(len(T)):
-        kernel[i] = SM_kernel(0, T[i], M=M, f=f, sigma_f=sigma_f)
+    kernel = np.zeros(len(time_samples))
+    for i in tqdm(range(len(time_samples))):
+        kernel[i] = SM_kernel(0, time_samples[i], M=M, f=f,
+                              sigma_f=sigma_f, B=B, T=T, v=v, amplitude=amplitude)
     if show is False:
         return kernel
-    plot_kernel(T, kernel)
+    plot_kernel(time_samples, kernel, title=title)
     return kernel
 
 
-def return_SM_kernel_matrix(T1, T2=None, M=6, f=[440], sigma_f=1e-5, show=False):
+def return_SM_kernel_matrix(T1, T2=None, M=12, f=[440], sigma_f=0.2, show=False, B=None, T=None, v=None, amplitude=25, title=None):
     """
     Compute the Spectral Mixture kernel matrix between two sets of vectors.
     If T2 is None, find matrix between T1 and T1.
@@ -264,17 +300,57 @@ def return_SM_kernel_matrix(T1, T2=None, M=6, f=[440], sigma_f=1e-5, show=False)
 
     kernel_matrix = np.zeros((n1, n2))
 
-    for i in range(n1):
+    for i in tqdm(range(n1)):
         for j in range(n2):
             t1 = T1[i]
             t2 = T2[j]
 
-            kernel_matrix[i, j] = SM_kernel(t1, t2, M=M,  f=f, sigma_f=sigma_f)
+            kernel_matrix[i, j] = SM_kernel(
+                t1, t2, M=M,  f=f, sigma_f=sigma_f, B=B, T=T, v=v, amplitude=amplitude)
 
     if show is False:
         return kernel_matrix
-    plot_kernel_matrix(kernel_matrix)
+    plot_kernel_matrix(kernel_matrix, title=title)
     return kernel_matrix
+
+
+def improved_SM_kernel(X1, X2, M=16, f=[440], sigma_f=5, show=False, B=None, T=None, v=None, amplitude=25):
+    """
+    SM kernel.
+
+    Args:
+        X1: Array of m points (m x 1).
+        X2: Array of n points (n x 1).
+
+    Returns:
+        (m x n) matrix.
+    """
+    if v is None:
+        v = 2.37
+    if T is None:
+        T = 0.465
+
+    sqdist = np.sum(X1**2, 1).reshape(-1, 1) + \
+        np.sum(X2**2, 1) - 2 * np.dot(X1, X2.T)
+
+    cosine_series = np.zeros((X1.shape[0], X1.shape[0]))
+
+    # Make 1D (this should be fine since we are dealing with only one dimension)
+    X1_1D = X1.flatten()
+    X2_1D = X2.flatten()
+
+    for fundamental_frequency in tqdm(f):
+        # Add inharmonicity constant, that depends on each fundamental frequency
+        if B is None:
+            closest_key = min(inharmonicity.B.keys(), key=lambda key: abs(
+                key - fundamental_frequency))
+            B = inharmonicity.B[closest_key]
+        for m in range(M):
+            inharmonicity_const = np.sqrt((1 + B * (m+1)**2))
+            cosine_series += 1/(1 + (T*(m+1))**v) * np.cos(2 * np.pi *
+                                                           inharmonicity_const * (m+1) * fundamental_frequency * np.subtract.outer(X1_1D, X2_1D))
+
+    return amplitude * np.exp(-2 * np.pi**2 * sigma_f**2 * sqdist) * cosine_series
 
 
 def RBF_kernel(X1, X2, l=1.0, sigma_f=1.0):
@@ -297,13 +373,13 @@ def RBF_kernel(X1, X2, l=1.0, sigma_f=1.0):
 # ----------------------------------------------------------
 
 
-def nlml(T, Y, cov_s=None, M=10, sigma_f=100, f=[400], sigma_n=1e-2):
+def nlml(time_samples, Y, cov_s=None, M=10, sigma_f=0.2, f=[400], sigma_n=1e-2, T=None, v=None):
     """
     Return Negative Log Marginal Likelihood.
     Assumes zero mean, and does not add noise to ensure positive definite covariance matrix.
 
     Args:
-        T: Vector of input time samples.
+        time_samples: Vector of input time samples.
         Y: Vector of corresponding time value outputs, to be measured against the GP model.
 
     Returns:
@@ -311,14 +387,14 @@ def nlml(T, Y, cov_s=None, M=10, sigma_f=100, f=[400], sigma_n=1e-2):
     """
     Y = Y.ravel()
     if cov_s is None:
-        K = return_SM_kernel_matrix(T, T, M=M, sigma_f=sigma_f, f=f) + \
-            sigma_n**2 * np.eye(len(T))
+        K = return_SM_kernel_matrix(time_samples, time_samples, M=M, sigma_f=sigma_f, f=f, T=T, v=v) + \
+            sigma_n**2 * np.eye(len(time_samples))
     else:
-        K = cov_s + sigma_n**2 * np.eye(len(T))
-    return 0.5 * Y.dot(inv(K).dot(Y)) + 0.5 * np.log(det(K)) + 0.5 * len(T) * np.log(2*np.pi)
+        K = cov_s + sigma_n**2 * np.eye(len(time_samples))
+    return 0.5 * Y.dot(inv(K).dot(Y)) + 0.5 * np.log(det(K)) + 0.5 * len(time_samples) * np.log(2*np.pi)
 
 
-def stable_nlml(T, Y,  M=8, sigma_f=20, f=[440], sigma_n=1e-2):
+def stable_nlml(time_samples, Y,  M=15, sigma_f=5, f=[440], sigma_n=1e-2, B=None, T=None, v=None, amplitude=25):
     """
     Return Negative Log Marginal Likelihood via stable method.
     Assumes zero mean.
@@ -327,15 +403,15 @@ def stable_nlml(T, Y,  M=8, sigma_f=20, f=[440], sigma_n=1e-2):
     Section 2.2, Algorithm 2.1.
 
     Args:
-        T: Vector of input time samples.
+        time_samples: Vector of input time samples.
         Y: Vector of corresponding time value outputs, to be measured against the GP model.
 
     Returns:
         Value of Negative Log Marginal Likelihood.
     """
     Y = Y.ravel()
-    K = return_SM_kernel_matrix(T, T, M=M, sigma_f=sigma_f, f=f) + \
-        sigma_n**2 * np.eye(len(T))
+    K = return_SM_kernel_matrix(time_samples, time_samples, M=M, sigma_f=sigma_f, f=f, B=B, T=T, v=v, amplitude=amplitude) + \
+        sigma_n**2 * np.eye(len(time_samples))
     L = cholesky(K)
 
     S1 = solve_triangular(L, Y, lower=True)
@@ -343,14 +419,14 @@ def stable_nlml(T, Y,  M=8, sigma_f=20, f=[440], sigma_n=1e-2):
 
     return np.sum(np.log(np.diagonal(L))) + \
         0.5 * Y.dot(S2) + \
-        0.5 * len(T) * np.log(2*np.pi)
+        0.5 * len(time_samples) * np.log(2*np.pi)
 
 # ----------------------------------------------------------
 # Predictor functions
 # ----------------------------------------------------------
 
 
-def posterior(T_test, T_train, Y_train, M=8, sigma_f=20, sigma_y=0.005, f=[440]):
+def posterior(T_test, T_train, Y_train, M=14, sigma_f=0.2, sigma_y=0.005, f=[440], B=None, T=None, v=None):
     """
     Computes the sufficient statistics of the posterior distribution 
     from m training data T_train and Y_train and n new inputs T_test.
@@ -366,12 +442,12 @@ def posterior(T_test, T_train, Y_train, M=8, sigma_f=20, sigma_y=0.005, f=[440])
     Returns:
         Posterior mean vector (n x d) and covariance matrix (n x n).
     """
-    K = return_SM_kernel_matrix(T_train, T_train, M=M, sigma_f=sigma_f, f=f) + \
+    K = return_SM_kernel_matrix(T_train, T_train, M=M, sigma_f=sigma_f, f=f, B=B, T=T, v=v) + \
         sigma_y**2 * np.eye(len(T_train))
     K_s = return_SM_kernel_matrix(
-        T_train, T_test, M=M, sigma_f=sigma_f, f=f)
+        T_train, T_test, M=M, sigma_f=sigma_f, f=f, B=B, T=T, v=v)
     K_ss = return_SM_kernel_matrix(
-        T_test, T_test, M=M, sigma_f=sigma_f, f=f) + 1e-8 * np.eye(len(T_test))
+        T_test, T_test, M=M, sigma_f=sigma_f, f=f, B=B, T=T, v=v) + 1e-8 * np.eye(len(T_test))
     K_inv = inv(K)
 
     # Calculate posterior mean function
@@ -387,10 +463,10 @@ def posterior(T_test, T_train, Y_train, M=8, sigma_f=20, sigma_y=0.005, f=[440])
 # ----------------------------------------------------------
 
 
-def golden_section(x1, x2, X_train, Y_train, M=8, sigma=1e-2, tol=1, integer_search=False):
+def golden_section_f(x1, x2, X_train, Y_train, M=8, sigma=1e-2, tol=1, integer_search=False, B=None):
     # Initial points
-    f1 = nlml(X_train, Y_train, M, sigma, f=[x1])
-    f2 = nlml(X_train, Y_train, M, sigma, f=[x2])
+    f1 = nlml(X_train, Y_train, M, sigma, f=[x1], B=B)
+    f2 = nlml(X_train, Y_train, M, sigma, f=[x2], B=B)
 
     # Set up golden ratios
     r = (np.sqrt(5)-1)/2.0
@@ -425,7 +501,39 @@ def golden_section(x1, x2, X_train, Y_train, M=8, sigma=1e-2, tol=1, integer_sea
     return x3
 
 
-def nlml_fn(X_train, Y_train, M=8, naive=False):
+def golden_section_B(B1, B2, X_train, Y_train, f=[440], M=12, sigma_f=0.2, tol=0.00008):
+    # Initial points
+    f1 = stable_nlml(X_train, Y_train, M=M, sigma_f=sigma_f, f=f, B=B1)
+    f2 = stable_nlml(X_train, Y_train, M=M, sigma_f=sigma_f, f=f, B=B2)
+
+    # Set up golden ratios
+    r = (np.sqrt(5)-1)/2.0
+
+    # Third point
+    B3 = B1 * (1-r) + B2 * r
+    f3 = stable_nlml(X_train, Y_train, M=M, sigma_f=sigma_f, f=f, B=B3)
+
+    # Loop until convergence
+    while abs(B1-B2) > tol:
+
+        B4 = B1 * r + B2 * (1-r)
+        f4 = stable_nlml(
+            X_train, Y_train, M=M, sigma_f=sigma_f, f=f, B=B4)
+        print(f4, '/n', B3)
+        if f4 < f3:
+            B2 = B3
+            f2 = f3
+            B3 = B4
+            f3 = f4
+        else:
+            B1 = B2
+            f1 = f2
+            B2 = B4
+            f2 = f4
+    return B3
+
+
+def nlml_fn(X_train, Y_train, f=[440],  M=12, naive=False, sigma_f=0.4):
     """
     Returns a function that computes the negative log marginal
     likelihood for training data X_train and Y_train and given
@@ -455,8 +563,8 @@ def nlml_fn(X_train, Y_train, M=8, naive=False):
         # Naive implementation of Eq. (11). Works well for the examples
         # in this article but is numerically less stable compared to
         # the implementation in nll_stable below.
-        K = return_SM_kernel_matrix(X_train, X_train, M=M, f=[theta[0]], sigma_f=theta[1]) + \
-            theta[2]**2 * np.eye(len(X_train))
+        K = return_SM_kernel_matrix(X_train, X_train, M=M, f=f, sigma_f=sigma_f, T=theta[0], v=theta[1]) + \
+            0.005**2 * np.eye(len(X_train))
         return 0.5 * np.log(det(K)) + \
             0.5 * Y_train.dot(inv(K).dot(Y_train)) + \
             0.5 * len(X_train) * np.log(2*np.pi)
@@ -466,7 +574,7 @@ def nlml_fn(X_train, Y_train, M=8, naive=False):
         # in http://www.gaussianprocess.org/gpml/chapters/RW2.pdf, Section
         # 2.2, Algorithm 2.1.
 
-        K = return_SM_kernel_matrix(X_train, X_train, M=M, f=[theta[0]], sigma_f=theta[1]) + \
+        K = return_SM_kernel_matrix(X_train, X_train, M=M, f=f, sigma_f=sigma_f, T=theta[0], v=theta[1]) + \
             0.0005**2 * np.eye(len(X_train))
         L = cholesky(K)
 
