@@ -1,23 +1,26 @@
 import numpy as np
 import scipy.io.wavfile as wav
 import matplotlib.pyplot as plt
+import scipy
 from scipy.optimize import minimize
 
 import scipy.io.wavfile as wavf
+from sklearn.gaussian_process.kernels import Matern
 
 import helper
 
-number_samples = 1500
-multiplier = 1.5
+number_samples = 150
+multiplier = 1
 
 
 # Training data
-wav_file = '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/wav_files/A_440_piano.wav'
+wav_file = '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/wav_files/piano_f4_349.wav'
 sample_rate, data = wav.read(wav_file)
 # Truncate data to 700 samples long
-data = data[500:2000]
+data = data[3600:4600]
 audio_duration = len(data)/sample_rate
 time_samples = np.linspace(0, audio_duration, len(data))
+
 
 # Test data
 T_test = np.linspace(0, audio_duration*multiplier, number_samples)
@@ -25,32 +28,64 @@ T_test = np.linspace(0, audio_duration*multiplier, number_samples)
 # --------------------------------------------------------------------------------------------------
 # Plotting out frequency spectrum of kernel power spectrum directly
 # --------------------------------------------------------------------------------------------------
+# helper.plot_audio(time_samples, data, show=True,
+#                   title="2000 samples")
+# helper.plot_fft(data, sample_rate, colour='r',
+#                 title="FFT of 2000 samples - Hanning window")
+# plt.show()
 
-helper.plot_fft(data, sample_rate, colour='r')
-output, f_spectrum = helper.return_kernel_spectrum(
-    f=[440], M=8, sigma_f=20,  max_freq=5500, no_samples=len(data))  # sigma_f allows the gps to lookthe same height more or less....
-# sqrt because it was the power spectrum we created
-plt.plot(f_spectrum, 69*np.sqrt(output))
-plt.show()
+
+# output, f_spectrum = helper.return_kernel_spectrum(
+#     f=[330], M=8, sigma_f=10,  max_freq=5500, no_samples=len(data))  # sigma_f allows the gps to lookthe same height more or less....
+# # sqrt because it was the power spectrum we created
+# plt.plot(f_spectrum, 17*np.sqrt(output))
+# plt.show()
 
 
 # --------------------------------------------------------------------------------------------------
 # Plotting audio and covariance samples
 # --------------------------------------------------------------------------------------------------
 
-# helper.plot_audio(time_samples, data)
-# helper.return_SM_kernel(time_samples, M=5, f=[440], sigma_f=1e-1, show=True)
+# # helper.plot_audio(time_samples, data)
+# X = np.arange(-0.1, 0.1, 0.0001)
+# helper.return_SM_kernel(
+#     X, M=3, f=[1760], sigma_f=5, show=True, amplitude=5, title="f=1760 Hz; M=3; sigma=5; amplitude=5")
+# helper.return_SM_kernel(
+#     X, M=16, f=[1760], sigma_f=5, show=True, amplitude=5, title="f=1760 Hz; M=16; sigma=5; amplitude=5")
+# helper.return_SM_kernel(
+#     X, M=3, f=[1760], sigma_f=20, show=True, amplitude=5, title="f=1760 Hz; M=3; sigma=20; amplitude=5")
+# helper.return_SM_kernel(
+#     X, M=3, f=[1760], sigma_f=5, show=True, amplitude=25, title="f=1760 Hz; M=3; sigma=5; amplitude=25")
+
+
+# --------------------------------------------------------------------------------------------------
+# Plotting prior
+# --------------------------------------------------------------------------------------------------
+# Finite number of points
+title = "f=[261,1760] Hz; M=16; sigma=20; amplitude=1"
+X = np.arange(-0.005, 0.005, 0.00005).reshape(-1, 1)
+zero = np.zeros(X.shape)
+# cov = helper.RBF_kernel(X, X, l=1, sigma_f=1.0)
+cov = helper.improved_SM_kernel(
+    X, X, f=[2170], M=16, sigma_f=20, amplitude=5)
+mu = np.zeros(len(X))
+# Draw three samples from the prior
+samples = np.random.multivariate_normal(mu.ravel(), cov, 1)
+helper.plot_gp(mu, cov, X, samples=samples,
+               title=title)
+plt.show()
 
 # --------------------------------------------------------------------------------------------------
 # Plotting posterior
 # --------------------------------------------------------------------------------------------------
 
 # mu_s, cov_s = helper.posterior(
-#     T_test, time_samples, data, M=8, f=[440], sigma_f=1, sigma_y=0.0005)
+#     T_test, time_samples, data, M=14, f=[330], sigma_f=1, sigma_y=0.0005)
 
 
 # helper.plot_gp(mu_s, cov_s, T_test, T_train=time_samples,
 #                Y_train=data, samples=2)
+# plt.show()
 
 # # Write the predicted mean to a wave file
 # mu_s = mu_s.ravel()
@@ -63,7 +98,22 @@ plt.show()
 # Calculating likelihoods
 # --------------------------------------------------------------------------------------------------
 
-# print(helper.stable_nlml(time_samples, data, f=[196, 233, 277, 311]))
+# print("for f=349 (correct)", helper.stable_nlml(
+#     time_samples, data, M=16, sigma_f=5, f=[349], amplitude=0.001))  # with 1000 samples, and amplitude = 0.001, this gives -3425.5
+# print("for f=50 ()", helper.stable_nlml(
+#     time_samples, data, f=[50], amplitude=0.001))
+# print("for f=50 ()", helper.stable_nlml(
+#     time_samples, data, f=[5], amplitude=0.001))
+
+# print("for f=349 (correct)", helper.stable_nlml(
+#     time_samples, data, M=16, sigma_f=5, f=[349], amplitude=25))  # with 1000 samples, and amplitude = 0.001, this gives -3425.5
+# print("for f=50 ()", helper.stable_nlml(
+#     time_samples, data, f=[50], amplitude=25))
+# print("for f=50 ()", helper.stable_nlml(
+#     time_samples, data, f=[5], amplitude=25))
+# print("for f=623 (wrong)", helper.stable_nlml(time_samples, data, f=[623]))
+# print("for f=423 (wrong)", helper.stable_nlml(time_samples, data, f=[423]))
+# focus on the liklihood functions
 
 # --------------------------------------------------------------------------------------------------
 # Comparing likelihoods of single notes
@@ -121,10 +171,17 @@ plt.show()
 
 
 # --------------------------------------------------------------------------------------------------
-# Optimising parameters (WIP)
+# Optimising parameters (WIP) TODO jc to optimise the values of B (inharmonicity values)
 # --------------------------------------------------------------------------------------------------
-# res = minimize(helper.nlml_fn(time_samples, data), [300, 1, 0.005],
-#                bounds=((1e-5, None), (1e-5, None)),
+# res = minimize(helper.nlml_fn(time_samples, data, f=[494]), [1, 1],
+#                bounds=((0, 3), (2.3, 2.4)),
 #                method='L-BFGS-B')
-# f_opt = helper.golden_section(20, 800, time_samples, data)
-# f_opt, sigma_f_opt, sigma_n_opt = res.x
+# # res = scipy.optimize(helper.stable_nlml(time_samples, data), f=[400])
+# T_opt, v_opt = res.x
+
+# B_opt = helper.golden_section_B(
+#     0.0002, 0.0007, time_samples, data, M=16, sigma_f=5, f=[349])
+# print(B_opt)
+# f_opt = helper.golden_section_B(
+#     400, 500, time_samples, data, M=14, sigma_f=1e-5, f=[494], integer_search=True)
+# print(T_opt, v_opt)
