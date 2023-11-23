@@ -16,6 +16,20 @@ def process_midi_to_note_info(midi_path: str) -> List[NoteInfo]:
     return ret
 
 
+def notes_to_chords(notes: List[NoteInfo]):
+    """
+    Returns all notes as they arrive (e.g. as chords or individual notes)
+    """
+    # Create a dictionary to group notes into
+    grouped_notes = {}
+    for note_info in notes:
+        note_start_key = note_info.note_start
+        if note_start_key not in grouped_notes:
+            grouped_notes[note_start_key] = []
+        grouped_notes[note_start_key].append(note_info)
+    return grouped_notes
+
+
 def process_MidiFile(mid: mido.MidiFile) -> List[NoteInfo]:
     tempo = get_tempo(mid.tracks[0])
     track_midi_note_info_ticks: List[List[NoteInfo]] = [
