@@ -30,7 +30,7 @@ audio_duration = len(data)/sample_rate
 time_samples = np.linspace(0, audio_duration, len(data))
 
 
-def psd(audio_samples, sample_rate):
+def psd(audio_samples: np.ndarray, sample_rate: int) -> np.ndarray:
     w = hann(len(audio_samples))
     psd = np.abs(fft(audio_samples*w))**2 / len(audio_samples)
     frequency_axis = fftfreq(len(audio_samples), d=1.0/sample_rate)
@@ -89,15 +89,3 @@ frequencies = hz(['G3', 'A#3', 'C#4', 'E4'])
 a = least_squares(data, f=frequencies, M=6, T=2, show=True, sigma_f=2)[0]
 print(a)
 plt.show()
-
-# phi = phi_matrix(frequency_axis, frequencies, M=M, std_dev=5, v=2.5, T=2)
-# inverse_factor = np.linalg.inv(phi.T @ phi)
-# psd = psd.reshape((-1, 1))
-# a = inverse_factor @ phi.T @ psd
-# print(a)
-# prediction = phi @ a
-# res = prediction - psd
-# sq_res = res.T @ res
-# print(sq_res)
-# plt.plot(frequency_axis, prediction)
-# plt.show()
