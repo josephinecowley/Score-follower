@@ -64,6 +64,17 @@ def plot_fft(data, sample_rate=44100, power_spectrum=False, title='Spectrum', co
     plt.title(title)
 
 
+def psd(audio_samples, sample_rate):
+    w = hann(len(audio_samples))
+    psd = np.abs(fft(audio_samples*w))**2 / len(audio_samples)
+    frequency_axis = fftfreq(len(audio_samples), d=1.0/sample_rate)
+    plt.plot(frequency_axis[:(len(audio_samples)//8)],
+             psd[:(len(audio_samples)//8)], label='Audio', color='red')
+    plt.xlabel('Frequency[Hz]')
+    plt.ylabel('Amplitude')
+    return psd[:(len(audio_samples)//8)], frequency_axis[:(len(audio_samples)//8)]
+
+
 def plot_kernel(T, kernel, title="Spectrum of Kernel"):
     """
     Visualise kernel function.
@@ -142,13 +153,26 @@ def plot_gp(mu, cov, T_test, T_train=None, Y_train=None, samples=None, title="GP
     plt.title(title)
     plt.show()
 
+
+def power_normalise(audio_samples):
+    # Calculate the Power Spectral Density (PSD)
+    psd = np.abs(fft(audio_samples))**2 / len(audio_samples)
+
+    # Compute the scaling factor (reciprocal of the square root of average power)
+    scaling_factor = 1 / np.sqrt(np.mean(psd))
+
+    # Apply scaling factor
+    normalised_samples = audio_samples * scaling_factor
+
+    return normalised_samples
+
 # ----------------------------------------------------------
 # SM kernel spectrum plotting
 # ----------------------------------------------------------
 
 
-def gaussian_function(x, mu, sig):
-    return 1.0 / (np.sqrt(2.0 * np.pi) * sig) * np.exp(-np.power((x - mu) / sig, 2.0) / 2)
+def gaussian_function(x, mu, std_dev):
+    return 1.0 / (np.sqrt(2.0 * np.pi) * std_dev) * np.exp(-np.power((x - mu) / std_dev, 2.0) / 2)
 
 
 def return_gaussian(mu, sig, max_freq=5000, show=False, no_samples=10000):
@@ -156,7 +180,7 @@ def return_gaussian(mu, sig, max_freq=5000, show=False, no_samples=10000):
     f_spectrum = np.linspace(0, max_freq, no_samples)
     output = np.zeros(len(f_spectrum))
     for i in range(len(output)):
-        output[i] = gaussian_function(f_spectrum[i], mu=mu, sig=sig)
+        output[i] = gaussian_function(f_spectrum[i], mu=mu, std_dev=sig)
     if show is False:
         return output
     plt.plot(f_spectrum, output)
@@ -164,8 +188,9 @@ def return_gaussian(mu, sig, max_freq=5000, show=False, no_samples=10000):
     return output
 
 
-def return_kernel_spectrum(f=[440], M=12, sigma_f=None, show=False, max_freq=10000, no_samples=10000, amplitude=25, B=None, T=None, v=None):
-    f_spectrum = np.linspace(0, max_freq, no_samples)
+def return_kernel_spectrum(f=[440], M=12, sigma_f=5, show=False, max_freq=10000, no_samples=10000, sample_rate=44100, amplitude=25, B=None, T=None, v=None):
+    # f_spectrum = np.linspace(0, max_freq, no_samples)
+    f_spectrum = fftfreq(no_samples, d=1.0/sample_rate)
     output = np.zeros(len(f_spectrum))
     if v is None:
         v = 2.37
@@ -180,9 +205,6 @@ def return_kernel_spectrum(f=[440], M=12, sigma_f=None, show=False, max_freq=100
             closest_key = min(inharmonicity.B.keys(), key=lambda key: abs(
                 key - fundamental_frequency))
             B = inharmonicity.B[closest_key]
-        if sigma_f is None:
-            sigma_f = np.emath.logn(3, fundamental_frequency)
-            print(sigma_f)
         for m in tqdm(range(M)):
             inharmonicity_const = np.sqrt((1 + B * (m+1)**2))
             output += 1/(1 + (T*(m+1))**v) * return_gaussian(fundamental_frequency *
@@ -191,8 +213,8 @@ def return_kernel_spectrum(f=[440], M=12, sigma_f=None, show=False, max_freq=100
     # Times by amplitude scalar
     output = amplitude * output
     # Add mains hum (we have observed this to be about one 25th of the size)
-    output += amplitude/60 * return_gaussian(52, 5, max_freq=max_freq,
-                                             no_samples=no_samples)
+    # output += amplitude/60 * return_gaussian(52, 5, max_freq=max_freq,
+    #                                          no_samples=no_samples)
     plt.plot(f_spectrum, output, label='kernel')
     if len(f) == 1:
         for i, point in enumerate(vertical_lines):
@@ -326,16 +348,19 @@ def improved_SM_kernel(X1, X2, M=16, f=[440], sigma_f=5, show=False, B=None, T=N
         (m x n) matrix.
     TODO add check to see that vector elements are 1D
     """
+    M = int(M)
     if v is None:
         v = 2.37
     if T is None:
         T = 0.465
 
+    X1 = X1.reshape(-1, 1)
+    X2 = X2.reshape(-1, 1)
+
     sqdist = np.sum(X1**2, 1).reshape(-1, 1) + \
         np.sum(X2**2, 1) - 2 * np.dot(X1, X2.T)
 
     cosine_series = np.zeros((X1.shape[0], X2.shape[0]))
-    print(cosine_series.shape)
 
     # Make 1D (this should be fine since we are dealing with only one dimension)
     X1_1D = X1.flatten()
@@ -347,7 +372,7 @@ def improved_SM_kernel(X1, X2, M=16, f=[440], sigma_f=5, show=False, B=None, T=N
             closest_key = min(inharmonicity.B.keys(), key=lambda key: abs(
                 key - fundamental_frequency))
             B = inharmonicity.B[closest_key]
-        for m in range(M):
+        for m in tqdm(range(M)):
             inharmonicity_const = np.sqrt((1 + B * (m+1)**2))
             cosine_series += 1/(1 + (T*(m+1))**v) * np.cos(2 * np.pi *
                                                            inharmonicity_const * (m+1) * fundamental_frequency * np.subtract.outer(X1_1D, X2_1D))
@@ -412,7 +437,7 @@ def stable_nlml(time_samples, Y,  M=15, sigma_f=5, f=[440], sigma_n=1e-2, B=None
         Value of Negative Log Marginal Likelihood.
     """
     Y = Y.ravel()
-    K = return_SM_kernel_matrix(time_samples, time_samples, M=M, sigma_f=sigma_f, f=f, B=B, T=T, v=v, amplitude=amplitude) + \
+    K = improved_SM_kernel(time_samples, time_samples, M=M, sigma_f=sigma_f, f=f, B=B, T=T, v=v, amplitude=amplitude) + \
         sigma_n**2 * np.eye(len(time_samples))
     L = cholesky(K)
 
@@ -428,7 +453,7 @@ def stable_nlml(time_samples, Y,  M=15, sigma_f=5, f=[440], sigma_n=1e-2, B=None
 # ----------------------------------------------------------
 
 
-def posterior(T_test, T_train, Y_train, M=14, sigma_f=0.2, sigma_y=0.005, f=[440], B=None, T=None, v=None):
+def posterior(T_test, T_train, Y_train, M=14, sigma_f=10, sigma_y=0.0001, f=[440], B=None, T=None, v=None, amplitude=0.000005):
     """
     Computes the sufficient statistics of the posterior distribution 
     from m training data T_train and Y_train and n new inputs T_test.
@@ -446,12 +471,12 @@ def posterior(T_test, T_train, Y_train, M=14, sigma_f=0.2, sigma_y=0.005, f=[440
     """
     T_train = T_train.reshape(-1, 1)
     T_test = T_test.reshape(-1, 1)
-    K = improved_SM_kernel(T_train, T_train, M=M, sigma_f=sigma_f, f=f, B=B, T=T, v=v) + \
+    K = improved_SM_kernel(T_train, T_train, M=M, sigma_f=sigma_f, f=f, B=B, T=T, v=v, amplitude=amplitude) + \
         sigma_y**2 * np.eye(len(T_train))
     K_s = improved_SM_kernel(
-        T_train, T_test, M=M, sigma_f=sigma_f, f=f, B=B, T=T, v=v)
+        T_train, T_test, M=M, sigma_f=sigma_f, f=f, B=B, T=T, v=v, amplitude=amplitude)
     K_ss = improved_SM_kernel(
-        T_test, T_test, M=M, sigma_f=sigma_f, f=f, B=B, T=T, v=v) + 1e-8 * np.eye(len(T_test))
+        T_test, T_test, M=M, sigma_f=sigma_f, f=f, B=B, T=T, v=v, amplitude=amplitude) + 1e-8 * np.eye(len(T_test))
     K_inv = inv(K)
 
     # Calculate posterior mean function
@@ -505,24 +530,27 @@ def golden_section_f(x1, x2, X_train, Y_train, M=8, sigma=1e-2, tol=1, integer_s
     return x3
 
 
-def golden_section_B(B1, B2, X_train, Y_train, f=[440], M=12, sigma_f=0.2, tol=0.00008):
+def golden_section_B(B1, B2, X_train, Y_train, f=[440], M=12, sigma_f=0.2, tol=0.00008, amplitude=0.000205):
     # Initial points
-    f1 = stable_nlml(X_train, Y_train, M=M, sigma_f=sigma_f, f=f, B=B1)
-    f2 = stable_nlml(X_train, Y_train, M=M, sigma_f=sigma_f, f=f, B=B2)
+    f1 = stable_nlml(X_train, Y_train, M=M, sigma_f=sigma_f,
+                     f=f, B=B1, amplitude=amplitude)
+    f2 = stable_nlml(X_train, Y_train, M=M, sigma_f=sigma_f,
+                     f=f, B=B2, amplitude=amplitude)
 
     # Set up golden ratios
     r = (np.sqrt(5)-1)/2.0
 
     # Third point
     B3 = B1 * (1-r) + B2 * r
-    f3 = stable_nlml(X_train, Y_train, M=M, sigma_f=sigma_f, f=f, B=B3)
+    f3 = stable_nlml(X_train, Y_train, M=M, sigma_f=sigma_f,
+                     f=f, B=B3, amplitude=amplitude)
 
     # Loop until convergence
     while abs(B1-B2) > tol:
 
         B4 = B1 * r + B2 * (1-r)
         f4 = stable_nlml(
-            X_train, Y_train, M=M, sigma_f=sigma_f, f=f, B=B4)
+            X_train, Y_train, M=M, sigma_f=sigma_f, f=f, B=B4, amplitude=amplitude)
         print(f4, '/n', B3)
         if f4 < f3:
             B2 = B3
@@ -537,7 +565,7 @@ def golden_section_B(B1, B2, X_train, Y_train, f=[440], M=12, sigma_f=0.2, tol=0
     return B3
 
 
-def nlml_fn(X_train, Y_train, f=[440],  M=12, naive=False, sigma_f=0.4):
+def nlml_fn(X_train, Y_train, f=[440], sigma_f=2.5,  M=12, naive=False):
     """
     Returns a function that computes the negative log marginal
     likelihood for training data X_train and Y_train and given
@@ -567,8 +595,8 @@ def nlml_fn(X_train, Y_train, f=[440],  M=12, naive=False, sigma_f=0.4):
         # Naive implementation of Eq. (11). Works well for the examples
         # in this article but is numerically less stable compared to
         # the implementation in nll_stable below.
-        K = return_SM_kernel_matrix(X_train, X_train, M=M, f=f, sigma_f=sigma_f, T=theta[0], v=theta[1]) + \
-            0.005**2 * np.eye(len(X_train))
+        K = improved_SM_kernel(X_train, X_train, M=M, f=f, sigma_f=theta[0],  amplitude=theta[1]) + \
+            0.0005**2 * np.eye(len(X_train))
         return 0.5 * np.log(det(K)) + \
             0.5 * Y_train.dot(inv(K).dot(Y_train)) + \
             0.5 * len(X_train) * np.log(2*np.pi)
@@ -578,7 +606,7 @@ def nlml_fn(X_train, Y_train, f=[440],  M=12, naive=False, sigma_f=0.4):
         # in http://www.gaussianprocess.org/gpml/chapters/RW2.pdf, Section
         # 2.2, Algorithm 2.1.
 
-        K = return_SM_kernel_matrix(X_train, X_train, M=M, f=f, sigma_f=sigma_f, T=theta[0], v=theta[1]) + \
+        K = improved_SM_kernel(X_train, X_train, M=M, f=f, sigma_f=theta[0],  amplitude=theta[1]) + \
             0.0005**2 * np.eye(len(X_train))
         L = cholesky(K)
 
