@@ -450,10 +450,10 @@ def pimproved_SM_kernel(X1, X2, M=56, f=[440, 35], sigma_f=5, show=False, B=None
             B = inharmonicity.B[closest_key]
         for m in tqdm(range(M)):
             inharmonicity_const = np.sqrt((1 + B * (m+1)**2))
-            k_m = 2*np.pi*inharmonicity_const * (m+1) * fundamental_frequency
+            k_m = 2 * np.pi * inharmonicity_const * \
+                (m+1) * fundamental_frequency
             A = k_m * X1
             C = k_m * X2
-
             cosine_series += amplitude[i] / (1 + (T*(m+1))**v) * (
                 np.cos(A) * np.cos(C).T + np.sin(A) * np.sin(C).T)
 
