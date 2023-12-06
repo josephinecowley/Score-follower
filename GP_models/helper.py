@@ -14,7 +14,6 @@ from scipy.signal.windows import hann, hamming
 import scipy.io.wavfile as wavf
 from tqdm import tqdm
 
-
 import inharmonicity
 
 
@@ -336,7 +335,7 @@ def return_SM_kernel_matrix(T1, T2=None, M=12, f=[440], sigma_f=0.2, show=False,
     return kernel_matrix
 
 
-def improved_SM_kernel(X1, X2, M=16, f=[440], sigma_f=5, show=False, B=None, T=None, v=None, amplitude=25):
+def improved_SM_kernel(X1, X2, M=56, f=[440, 35], sigma_f=5, show=False, B=None, T=None, v=None, amplitude=None):
     """
     SM kernel.
 
@@ -347,13 +346,15 @@ def improved_SM_kernel(X1, X2, M=16, f=[440], sigma_f=5, show=False, B=None, T=N
     Returns:
         (m x n) matrix.
     TODO add check to see that vector elements are 1D
+    TODO add checks to make sure all parameters are of the correct form
     """
     M = int(M)
     if v is None:
         v = 2.37
     if T is None:
         T = 0.465
-
+    if amplitude is None:
+        amplitude = np.ones(len(f))/np.sum(len(f))
     X1 = X1.reshape(-1, 1)
     X2 = X2.reshape(-1, 1)
 
@@ -363,10 +364,85 @@ def improved_SM_kernel(X1, X2, M=16, f=[440], sigma_f=5, show=False, B=None, T=N
     cosine_series = np.zeros((X1.shape[0], X2.shape[0]))
 
     # Make 1D (this should be fine since we are dealing with only one dimension)
-    X1_1D = X1.flatten()
-    X2_1D = X2.flatten()
+    tau = np.subtract.outer(X1.flatten(), X2.flatten()) * 2 * np.pi
+    print(np.shape(tau))
 
-    for fundamental_frequency in tqdm(f):
+    for i, fundamental_frequency in tqdm(enumerate(f)):
+        # Add inharmonicity constant, that depends on each fundamental frequency
+        if B is None:
+            closest_key = min(inharmonicity.B.keys(), key=lambda key: abs(
+                key - fundamental_frequency))
+            B = inharmonicity.B[closest_key]
+
+        for m in tqdm(range(M)):
+            inharmonicity_const = np.sqrt((1 + B * (m+1)**2))
+
+            # cosine_series += amplitude[i] / (1 + (T*(m+1))**v) * npa.cos(
+            delta = amplitude[i] / (1 + (T*(m+1))**v) * np.cos(
+                inharmonicity_const * (m+1) * fundamental_frequency * tau)
+            cosine_series += delta
+
+    return np.exp(-2 * np.pi**2 * sigma_f**2 * sqdist) * cosine_series
+
+
+def impimproved_SM_kernel(X1, X2, M=56, f=[440, 35], sigma_f=5, B=None, T=None, v=None, amplitude=None):
+    # WIP
+    M = int(M)
+    f = np.array(f)
+
+    if v is None:
+        v = 2.37
+    if T is None:
+        T = 0.465
+    if amplitude is None:
+        amplitude = np.ones(len(f)) / len(f)
+
+    X1 = X1.reshape(-1, 1)
+    X2 = X2.reshape(-1, 1)
+
+    sqdist = np.sum(X1**2, 1).reshape(-1, 1) + \
+        np.sum(X2**2, 1) - 2 * np.dot(X1, X2.T)
+
+    m = np.arange(1, M + 1)
+    mf = np.multiply(f[:, None], m).flatten()
+    weights = 1 / (1 + (T*m)**v)
+
+    tau = np.subtract.outer(X1.flatten(), X2.flatten())
+    matrix = np.cos(2 * np.pi * tau[:, :, None] * mf)
+    matrix = matrix.sum(axis=2)
+
+    return np.exp(-2 * np.pi**2 * sigma_f**2 * sqdist) * matrix
+
+
+def pimproved_SM_kernel(X1, X2, M=56, f=[440, 35], sigma_f=5, show=False, B=None, T=None, v=None, amplitude=None):
+    """
+    SM kernel.
+
+    Args:
+        X1: Array of m points (m x 1).
+        X2: Array of n points (n x 1).
+
+    Returns:
+        (m x n) matrix.
+    TODO add check to see that vector elements are 1D
+    TODO add checks to make sure all parameters are of the correct form
+    """
+    M = int(M)
+    if v is None:
+        v = 2.37
+    if T is None:
+        T = 0.465
+    if amplitude is None:
+        amplitude = np.ones(len(f))/np.sum(len(f))
+    X1 = X1.reshape(-1, 1)
+    X2 = X2.reshape(-1, 1)
+
+    sqdist = np.sum(X1**2, 1).reshape(-1, 1) + \
+        np.sum(X2**2, 1) - 2 * np.dot(X1, X2.T)
+
+    cosine_series = np.zeros((X1.shape[0], X2.shape[0]))
+
+    for i, fundamental_frequency in tqdm(enumerate(f)):
         # Add inharmonicity constant, that depends on each fundamental frequency
         if B is None:
             closest_key = min(inharmonicity.B.keys(), key=lambda key: abs(
@@ -374,10 +450,14 @@ def improved_SM_kernel(X1, X2, M=16, f=[440], sigma_f=5, show=False, B=None, T=N
             B = inharmonicity.B[closest_key]
         for m in tqdm(range(M)):
             inharmonicity_const = np.sqrt((1 + B * (m+1)**2))
-            cosine_series += 1/(1 + (T*(m+1))**v) * np.cos(2 * np.pi *
-                                                           inharmonicity_const * (m+1) * fundamental_frequency * np.subtract.outer(X1_1D, X2_1D))
+            k_m = 2*np.pi*inharmonicity_const * (m+1) * fundamental_frequency
+            A = k_m * X1
+            C = k_m * X2
 
-    return amplitude * np.exp(-2 * np.pi**2 * sigma_f**2 * sqdist) * cosine_series
+            cosine_series += amplitude[i] / (1 + (T*(m+1))**v) * (
+                np.cos(A) * np.cos(C).T + np.sin(A) * np.sin(C).T)
+
+    return np.exp(-2 * np.pi**2 * sigma_f**2 * sqdist) * cosine_series
 
 
 def RBF_kernel(X1, X2, l=1.0, sigma_f=1.0):
@@ -421,7 +501,7 @@ def nlml(time_samples, Y, cov_s=None, M=10, sigma_f=0.2, f=[400], sigma_n=1e-2, 
     return 0.5 * Y.dot(inv(K).dot(Y)) + 0.5 * np.log(det(K)) + 0.5 * len(time_samples) * np.log(2*np.pi)
 
 
-def stable_nlml(time_samples, Y,  M=15, sigma_f=5, f=[440], sigma_n=1e-2, B=None, T=None, v=None, amplitude=25):
+def stable_nlml(time_samples, Y,  M=15, sigma_f=5, f=[440], sigma_n=1e-2, B=None, T=None, v=None, amplitude=None):
     """
     Return Negative Log Marginal Likelihood via stable method.
     Assumes zero mean.
@@ -436,6 +516,7 @@ def stable_nlml(time_samples, Y,  M=15, sigma_f=5, f=[440], sigma_n=1e-2, B=None
     Returns:
         Value of Negative Log Marginal Likelihood.
     """
+    print((Y))
     Y = Y.ravel()
     K = improved_SM_kernel(time_samples, time_samples, M=M, sigma_f=sigma_f, f=f, B=B, T=T, v=v, amplitude=amplitude) + \
         sigma_n**2 * np.eye(len(time_samples))
