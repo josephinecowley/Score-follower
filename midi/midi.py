@@ -16,6 +16,12 @@ def process_midi_to_note_info(midi_path: str) -> List[NoteInfo]:
     return ret
 
 
+def dict_to_frequency_list(chords: dict) -> list:
+    sorted_time_keys = sorted(chords.keys(), reverse=False)
+    score = [chords[key] for key in sorted_time_keys]
+    return score
+
+
 def notes_to_chords(notes: List[NoteInfo]) -> dict:
     """
     Returns a dictionary with keys as the onset times and a list of frequencies as the values (e.g. chords or individual notes)
@@ -75,3 +81,19 @@ def process_track(
                     )
                 )
     return ret
+
+
+def plot_piece(chords: dict, num_it: int):
+    # Plot each set of values corresponding to time key for the first 50 items
+    for i, (time, frequencies) in enumerate(chords.items()):
+        plt.scatter([time] * len(frequencies), frequencies,
+                    label=str(time), marker='x')
+        if i == num_it:  # Stop after plotting the first 50 items
+            break
+    # Add labels and title
+    plt.xlabel('Time')
+    # Set y-axis to a logarithmic scale
+    plt.yscale('log')
+    plt.ylabel('Frequency')
+    plt.title('Frequency vs Time')
+    return
