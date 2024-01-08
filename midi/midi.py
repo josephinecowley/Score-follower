@@ -19,7 +19,11 @@ def process_midi_to_note_info(midi_path: str) -> List[NoteInfo]:
 def dict_to_frequency_list(chords: dict) -> list:
     sorted_time_keys = sorted(chords.keys(), reverse=False)
     score = [chords[key] for key in sorted_time_keys]
-    return score
+    score_no_repeats = [score[0]]
+    for sublist in score[1:]:
+        if sublist != score_no_repeats[-1]:
+            score_no_repeats.append(sublist)
+    return score_no_repeats
 
 
 def notes_to_chords(notes: List[NoteInfo]) -> dict:
@@ -34,6 +38,7 @@ def notes_to_chords(notes: List[NoteInfo]) -> dict:
             grouped_notes[note_start_key] = []
         grouped_notes[note_start_key].append(
             440 * (2 ** ((note_info.midi_note_num - 69) / 12.0)))  # Here we have converted from midi to frequencies!
+
     return grouped_notes
 
 
@@ -68,18 +73,47 @@ def process_track(
         list of NoteInfo clases, which contain midi_not_number and note_start times
     """
     ret: List[NoteInfo] = []
+    active_notes = {}  # Dictionary to track active notes
     curr_tick = 0
     for msg in track:
         curr_tick += msg.time
+
         if hasattr(msg, "velocity"):
             if msg.velocity > 0 and msg.type == "note_on":
-                ret.append(
-                    NoteInfo(
-                        msg.note,
-                        mido.tick2second(
-                            curr_tick, ticks_per_beat, tempo) * 1000,
+                # Note On message
+                active_notes[msg.note] = curr_tick
+
+            elif msg.type == "note_off" or (msg.type == "note_on" and msg.velocity == 0):
+                # Note Off message or Note On with velocity 0 (simulated Note Off)
+                if msg.note in active_notes:
+                    start_time = mido.tick2second(
+                        active_notes[msg.note], ticks_per_beat, tempo) * 1000
+                    end_time = mido.tick2second(
+                        curr_tick, ticks_per_beat, tempo) * 1000
+
+                    ret.append(
+                        NoteInfo(
+                            msg.note,
+                            start_time,
+                            end_time
+                        )
                     )
-                )
+
+                    # Remove the note from the active notes
+                    del active_notes[msg.note]
+
+    # Process remaining active notes without Note Off messages
+    for note, start_tick in active_notes.items():
+        start_time = mido.tick2second(start_tick, ticks_per_beat, tempo) * 1000
+        end_time = None  # You can set this to some default value or leave it as None
+        ret.append(
+            NoteInfo(
+                note,
+                start_time,
+                end_time
+            )
+        )
+
     return ret
 
 
