@@ -4,6 +4,7 @@ import mido
 from itertools import chain
 import numpy as np
 import matplotlib.pyplot as plt
+from collections import defaultdict
 
 
 def process_midi_to_note_info(midi_path: str) -> List[NoteInfo]:
@@ -26,18 +27,34 @@ def dict_to_frequency_list(chords: dict) -> list:
     return score_no_repeats
 
 
-def notes_to_chords(notes: List[NoteInfo]) -> dict:
+def notes_to_chords(notes: List[NoteInfo], sustain: bool = False) -> dict:
     """
     Returns a dictionary with keys as the onset times and a list of frequencies as the values (e.g. chords or individual notes)
     """
-    # Create a dictionary to group notes into
-    grouped_notes = {}
+    notes.sort(key=lambda x: x.note_start)
+    grouped_notes = defaultdict(list)
+    active_notes = set()
+
     for note_info in notes:
-        note_start_key = note_info.note_start
-        if note_start_key not in grouped_notes:
-            grouped_notes[note_start_key] = []
-        grouped_notes[note_start_key].append(
-            440 * (2 ** ((note_info.midi_note_num - 69) / 12.0)))  # Here we have converted from midi to frequencies!
+        note_frequency = 440 * (2 ** ((note_info.midi_note_num - 69) / 12.0))
+        note_start_time = note_info.note_start
+        note_end_time = note_info.note_end
+
+        active_notes = {
+            active_note for active_note in active_notes if active_note[0] >= note_start_time}
+
+        active_notes.add((note_end_time, note_frequency))
+
+        if sustain:
+            if note_start_time not in grouped_notes:
+                # We only ever need to add sustained notes to a group upon initialisation
+                grouped_notes[note_start_time] = [active_note[1]
+                                                  for active_note in active_notes]
+            else:
+                # Else we just need to add the current note (don't want to duplicate active notes)
+                grouped_notes[note_start_time].append(note_frequency)
+        else:
+            grouped_notes[note_start_time].append(note_frequency)
 
     return grouped_notes
 
