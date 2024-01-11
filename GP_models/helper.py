@@ -1,6 +1,5 @@
 from __future__ import print_function
 
-from numpy.linalg import inv
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.io.wavfile as wav
@@ -174,9 +173,8 @@ def gaussian_function(x, mu, std_dev):
     return 1.0 / (np.sqrt(2.0 * np.pi) * std_dev) * np.exp(-np.power((x - mu) / std_dev, 2.0) / 2)
 
 
-def return_gaussian(mu, sig, max_freq=5000, show=False, no_samples=10000):
+def return_gaussian(f_spectrum, mu, sig, max_freq=5000, show=False, no_samples=10000):
     # Note the value of the number of samples affects the seen amplitudes (resolution may be too low!)
-    f_spectrum = np.linspace(0, max_freq, no_samples)
     output = np.zeros(len(f_spectrum))
     for i in range(len(output)):
         output[i] = gaussian_function(f_spectrum[i], mu=mu, std_dev=sig)
@@ -187,8 +185,8 @@ def return_gaussian(mu, sig, max_freq=5000, show=False, no_samples=10000):
     return output
 
 
-def return_kernel_spectrum(f=[440], M=12, sigma_f=5, show=False, max_freq=10000, no_samples=10000, sample_rate=44100, amplitude=25, B=None, T=None, v=None):
-    # f_spectrum = np.linspace(0, max_freq, no_samples)
+def return_kernel_spectrum(f=[440], M=12, sigma_f=5, show=False, max_freq=10000, no_samples=10000, sample_rate=44100, amplitude=1, B=None, T=None, v=None):
+    f_spectrum = np.linspace(0, max_freq, no_samples)
     f_spectrum = fftfreq(no_samples, d=1.0/sample_rate)
     output = np.zeros(len(f_spectrum))
     if v is None:
@@ -198,15 +196,13 @@ def return_kernel_spectrum(f=[440], M=12, sigma_f=5, show=False, max_freq=10000,
     vertical_lines = []
     for fundamental_frequency in tqdm(f):
         plt.axvline(x=fundamental_frequency, color='green', linestyle='--')
-        plt.text(fundamental_frequency, 0.85*max(plt.ylim()),
-                 f'f={fundamental_frequency}', va='bottom', rotation='vertical')
         if B is None:
             closest_key = min(inharmonicity.B.keys(), key=lambda key: abs(
                 key - fundamental_frequency))
             B = inharmonicity.B[closest_key]
         for m in tqdm(range(M)):
             inharmonicity_const = np.sqrt((1 + B * (m+1)**2))
-            output += 1/(1 + (T*(m+1))**v) * return_gaussian(fundamental_frequency *
+            output += 1/(1 + (T*(m+1))**v) * return_gaussian(f_spectrum, fundamental_frequency *
                                                              (m+1) * inharmonicity_const, sigma_f, max_freq=max_freq, no_samples=no_samples)
             vertical_lines.append(fundamental_frequency*(m+1))
     # Times by amplitude scalar
@@ -224,6 +220,7 @@ def return_kernel_spectrum(f=[440], M=12, sigma_f=5, show=False, max_freq=10000,
     plt.text(0.8, 1.15, f'T = {T} \nv={v} \nB={B}', transform=plt.gca().transAxes,
              fontsize=12, color='black', verticalalignment='top')
     plt.legend()
+    plt.xlim(0, max(f_spectrum)/5)
     if show is False:
         return output, f_spectrum
     plt.show()
@@ -233,156 +230,6 @@ def return_kernel_spectrum(f=[440], M=12, sigma_f=5, show=False, max_freq=10000,
 # ----------------------------------------------------------
 # Helper kernel functions and matrices
 # ----------------------------------------------------------
-
-
-def SM_kernel(t1, t2, M=16, f=[440], sigma_f=5, B=None, T=None, v=None, amplitude=25):
-    """
-    Spectral Mixture kernel.
-
-    Args:
-        t1: Scalar corresponding to time sample One.
-        t2: Scalar corresponding to time sample Two.
-        M: Integer corresponding to the number of partials.
-        f: Array of integers corresponding to different sources.
-        sigma_f: Standard deviation of kernel.
-
-    Returns:
-        Scalar output of kernel function. 
-
-    TODO add weights k
-    TODO add variance changes across Qs and Ms
-    """
-    if v is None:
-        v = 2.37
-    if T is None:
-        T = 0.465
-    cosine_series = 0
-
-    for fundamental_frequency in f:
-        # Add inharmonicity constant, that depends on each fundamental frequency
-        if B is None:
-            closest_key = min(inharmonicity.B.keys(), key=lambda key: abs(
-                key - fundamental_frequency))
-            B = inharmonicity.B[closest_key]
-        for m in range(M):
-            inharmonicity_const = np.sqrt((1 + B * (m+1)**2))
-            cosine_series += 1/(1 + (T*(m+1))**v) * np.cos((m+1) * 2 * np.pi *
-                                                           fundamental_frequency * inharmonicity_const * np.linalg.norm(t1 - t2))
-    #  Multiply by amplitude factor
-    cosine_series *= amplitude
-    # Add mains hum (amplitude was found to be 1, so no need to add it)
-    cosine_series += amplitude / 55 * \
-        np.cos(2 * np.pi * 52 * np.linalg.norm(t1 - t2))
-
-    return np.exp(-2 * (sigma_f**2) * np.pi**2 * np.linalg.norm(t1 - t2)**2) * cosine_series
-
-
-def return_SM_kernel(time_samples, show=False, M=6, f=[440], sigma_f=5, B=None, T=None, v=None, amplitude=25, title="Kernel Spectrum"):
-    """
-    Return kernel function.
-    Automatically does not show function, unless show=True.
-
-    Args:
-        time_samples: 1D numpy array of time samples.
-        show: If time_samplesrue, also display kernel function. If False, only return kernel.
-
-    Returns:
-        Kernel values of time_samples as numpy array. 
-    """
-    kernel = np.zeros(len(time_samples))
-    for i in tqdm(range(len(time_samples))):
-        kernel[i] = SM_kernel(0, time_samples[i], M=M, f=f,
-                              sigma_f=sigma_f, B=B, T=T, v=v, amplitude=amplitude)
-    if show is False:
-        return kernel
-    plot_kernel(time_samples, kernel, title=title)
-    return kernel
-
-
-def return_SM_kernel_matrix(T1, T2=None, M=12, f=[440], sigma_f=0.2, show=False, B=None, T=None, v=None, amplitude=25, title=None):
-    """
-    Compute the Spectral Mixture kernel matrix between two sets of vectors.
-    If T2 is None, find matrix between T1 and T1.
-    Automatically does not show matrix, unless show=True.
-
-    Args:
-        T1: Array of 1D time samples of length n1.
-        T2: Array of 1D time samples of length n2.
-        show: if True, plot heat map of covariance function.
-
-    Returns:
-        Matrix (n1, n2) of scalars from SM kernel.TODO check this retirns thjezse dimensions
-    """
-    if T2 is None:
-        T2 = T1
-
-    n1 = len(T1)
-    n2 = len(T2)
-
-    kernel_matrix = np.zeros((n1, n2))
-
-    for i in tqdm(range(n1)):
-        for j in range(n2):
-            t1 = T1[i]
-            t2 = T2[j]
-
-            kernel_matrix[i, j] = SM_kernel(
-                t1, t2, M=M,  f=f, sigma_f=sigma_f, B=B, T=T, v=v, amplitude=amplitude)
-
-    if show is False:
-        return kernel_matrix
-    plot_kernel_matrix(kernel_matrix, title=title)
-    return kernel_matrix
-
-
-def improved_SM_kernel(X1, X2, M=56, f=[440, 35], sigma_f=5, show=False, B=None, T=None, v=None, amplitude=None):
-    """
-    SM kernel.
-
-    Args:
-        X1: Array of m points (m x 1).
-        X2: Array of n points (n x 1).
-
-    Returns:
-        (m x n) matrix.
-    TODO add check to see that vector elements are 1D
-    TODO add checks to make sure all parameters are of the correct form
-    """
-    M = int(M)
-    if v is None:
-        v = 2.37
-    if T is None:
-        T = 0.465
-    if amplitude is None:
-        amplitude = np.ones(len(f))/np.sum(len(f))
-    X1 = X1.reshape(-1, 1)
-    X2 = X2.reshape(-1, 1)
-
-    sqdist = np.sum(X1**2, 1).reshape(-1, 1) + \
-        np.sum(X2**2, 1) - 2 * np.dot(X1, X2.T)
-
-    cosine_series = np.zeros((X1.shape[0], X2.shape[0]))
-
-    # Make 1D (this should be fine since we are dealing with only one dimension)
-    tau = np.subtract.outer(X1.flatten(), X2.flatten()) * 2 * np.pi
-    print(np.shape(tau))
-
-    for i, fundamental_frequency in tqdm(enumerate(f)):
-        # Add inharmonicity constant, that depends on each fundamental frequency
-        if B is None:
-            closest_key = min(inharmonicity.B.keys(), key=lambda key: abs(
-                key - fundamental_frequency))
-            B = inharmonicity.B[closest_key]
-
-        for m in tqdm(range(M)):
-            inharmonicity_const = np.sqrt((1 + B * (m+1)**2))
-
-            # cosine_series += amplitude[i] / (1 + (T*(m+1))**v) * npa.cos(
-            delta = amplitude[i] / (1 + (T*(m+1))**v) * np.cos(
-                inharmonicity_const * (m+1) * fundamental_frequency * tau)
-            cosine_series += delta
-
-    return np.exp(-2 * np.pi**2 * sigma_f**2 * sqdist) * cosine_series
 
 
 def impimproved_SM_kernel(X1, X2, M=56, f=[440, 35], sigma_f=5, B=None, T=None, v=None, amplitude=None):
@@ -414,7 +261,7 @@ def impimproved_SM_kernel(X1, X2, M=56, f=[440, 35], sigma_f=5, B=None, T=None, 
     return np.exp(-2 * np.pi**2 * sigma_f**2 * sqdist) * matrix
 
 
-def pimproved_SM_kernel(X1, X2, M=56, f=[440, 35], sigma_f=5, show=False, B=None, T=None, v=None, amplitude=None):
+def SM_kernel(X1, X2, M=12, f=[440], sigma_f=5,  B=None, T=None, v=None, amplitude=None):
     """
     SM kernel.
 
@@ -448,7 +295,7 @@ def pimproved_SM_kernel(X1, X2, M=56, f=[440, 35], sigma_f=5, show=False, B=None
             closest_key = min(inharmonicity.B.keys(), key=lambda key: abs(
                 key - fundamental_frequency))
             B = inharmonicity.B[closest_key]
-        for m in tqdm(range(M)):
+        for m in range(M):
             inharmonicity_const = np.sqrt((1 + B * (m+1)**2))
             k_m = 2 * np.pi * inharmonicity_const * \
                 (m+1) * fundamental_frequency
@@ -480,7 +327,7 @@ def RBF_kernel(X1, X2, l=1.0, sigma_f=1.0):
 # ----------------------------------------------------------
 
 
-def nlml(time_samples, Y, cov_s=None, M=10, sigma_f=0.2, f=[400], sigma_n=1e-2, T=None, v=None):
+def nlml(time_samples, Y, cov_s=None, M=10, sigma_f=0.2, f=[400],  B=None, sigma_n=1e-2, T=None, v=None, amplitude=None):
     """
     Return Negative Log Marginal Likelihood.
     Assumes zero mean, and does not add noise to ensure positive definite covariance matrix.
@@ -494,14 +341,14 @@ def nlml(time_samples, Y, cov_s=None, M=10, sigma_f=0.2, f=[400], sigma_n=1e-2, 
     """
     Y = Y.ravel()
     if cov_s is None:
-        K = return_SM_kernel_matrix(time_samples, time_samples, M=M, sigma_f=sigma_f, f=f, T=T, v=v) + \
+        K = SM_kernel(time_samples, time_samples, M=M, sigma_f=sigma_f, f=f, B=B, T=T, v=v, amplitude=amplitude) + \
             sigma_n**2 * np.eye(len(time_samples))
     else:
         K = cov_s + sigma_n**2 * np.eye(len(time_samples))
     return 0.5 * Y.dot(inv(K).dot(Y)) + 0.5 * np.log(det(K)) + 0.5 * len(time_samples) * np.log(2*np.pi)
 
 
-def stable_nlml(time_samples, Y,  M=15, sigma_f=5, f=[440], sigma_n=1e-2, B=None, T=None, v=None, amplitude=None):
+def stable_nlml(time_samples, Y,  cov_dict=None, M=15, sigma_f=5, f=[440], sigma_n=1e-2, B=None, T=0.465, v=2.37, amplitude=None, normalised=True):
     """
     Return Negative Log Marginal Likelihood via stable method.
     Assumes zero mean.
@@ -516,10 +363,16 @@ def stable_nlml(time_samples, Y,  M=15, sigma_f=5, f=[440], sigma_n=1e-2, B=None
     Returns:
         Value of Negative Log Marginal Likelihood.
     """
-    print((Y))
     Y = Y.ravel()
-    K = improved_SM_kernel(time_samples, time_samples, M=M, sigma_f=sigma_f, f=f, B=B, T=T, v=v, amplitude=amplitude) + \
-        sigma_n**2 * np.eye(len(time_samples))
+    if normalised is True:
+        Y = Y/sum(abs(Y))
+
+    if cov_dict is None:
+        K = SM_kernel(time_samples, time_samples, M=M, sigma_f=sigma_f, f=f, B=B, T=T, v=v, amplitude=amplitude) + \
+            sigma_n**2 * np.eye(len(time_samples))
+    else:
+        K = cov_dict[str(f)]  # Note this cov_dict already has noise added
+
     L = cholesky(K)
 
     S1 = solve_triangular(L, Y, lower=True)
@@ -529,12 +382,34 @@ def stable_nlml(time_samples, Y,  M=15, sigma_f=5, f=[440], sigma_n=1e-2, B=None
         0.5 * Y.dot(S2) + \
         0.5 * len(time_samples) * np.log(2*np.pi)
 
+
+def relative_nlml(time_samples, Y,  M=15, sigma_f=1/500000, f=[440], sigma_n=1e-2, B=None, T=2, v=5, amplitude=None, normalised=True):
+    """
+    This uses the stable implementation as written in stable_nlml. (see above)
+    After exploring the effects of the separate terms, it was decided to 
+    stick to using only the `data fit' term since this is the one which is 
+    not affected by change in Q. 
+    This is a unique problem for this application of GP models,
+    as in this case, there should be no added complexity from more notes (Q) 
+    """
+    Y = Y.ravel()
+    if normalised is True:
+        Y = Y/sum(abs(Y))
+    K = SM_kernel(time_samples, time_samples, M=M, sigma_f=sigma_f, f=f, B=B, T=T, v=v, amplitude=amplitude) + \
+        sigma_n**2 * np.eye(len(time_samples))
+
+    L = cholesky(K)
+
+    S1 = solve_triangular(L, Y, lower=True)
+    S2 = solve_triangular(L.T, S1, lower=False)
+
+    return 0.5 * Y.dot(S2)
 # ----------------------------------------------------------
 # Predictor functions
 # ----------------------------------------------------------
 
 
-def posterior(T_test, T_train, Y_train, M=14, sigma_f=10, sigma_y=0.0001, f=[440], B=None, T=None, v=None, amplitude=0.000005):
+def posterior(T_test, T_train, Y_train, M=14, sigma_f=10, sigma_y=0.0001, f=[440], B=None, T=None, v=None, amplitude=None):
     """
     Computes the sufficient statistics of the posterior distribution 
     from m training data T_train and Y_train and n new inputs T_test.
@@ -552,11 +427,11 @@ def posterior(T_test, T_train, Y_train, M=14, sigma_f=10, sigma_y=0.0001, f=[440
     """
     T_train = T_train.reshape(-1, 1)
     T_test = T_test.reshape(-1, 1)
-    K = improved_SM_kernel(T_train, T_train, M=M, sigma_f=sigma_f, f=f, B=B, T=T, v=v, amplitude=amplitude) + \
+    K = SM_kernel(T_train, T_train, M=M, sigma_f=sigma_f, f=f, B=B, T=T, v=v, amplitude=amplitude) + \
         sigma_y**2 * np.eye(len(T_train))
-    K_s = improved_SM_kernel(
+    K_s = SM_kernel(
         T_train, T_test, M=M, sigma_f=sigma_f, f=f, B=B, T=T, v=v, amplitude=amplitude)
-    K_ss = improved_SM_kernel(
+    K_ss = SM_kernel(
         T_test, T_test, M=M, sigma_f=sigma_f, f=f, B=B, T=T, v=v, amplitude=amplitude) + 1e-8 * np.eye(len(T_test))
     K_inv = inv(K)
 
@@ -676,7 +551,7 @@ def nlml_fn(X_train, Y_train, f=[440], sigma_f=2.5,  M=12, naive=False):
         # Naive implementation of Eq. (11). Works well for the examples
         # in this article but is numerically less stable compared to
         # the implementation in nll_stable below.
-        K = improved_SM_kernel(X_train, X_train, M=M, f=f, sigma_f=theta[0],  amplitude=theta[1]) + \
+        K = SM_kernel(X_train, X_train, M=M, f=f, sigma_f=theta[0],  amplitude=theta[1]) + \
             0.0005**2 * np.eye(len(X_train))
         return 0.5 * np.log(det(K)) + \
             0.5 * Y_train.dot(inv(K).dot(Y_train)) + \
@@ -687,7 +562,7 @@ def nlml_fn(X_train, Y_train, f=[440], sigma_f=2.5,  M=12, naive=False):
         # in http://www.gaussianprocess.org/gpml/chapters/RW2.pdf, Section
         # 2.2, Algorithm 2.1.
 
-        K = improved_SM_kernel(X_train, X_train, M=M, f=f, sigma_f=theta[0],  amplitude=theta[1]) + \
+        K = SM_kernel(X_train, X_train, M=M, f=f, sigma_f=theta[0],  amplitude=theta[1]) + \
             0.0005**2 * np.eye(len(X_train))
         L = cholesky(K)
 
