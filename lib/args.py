@@ -7,7 +7,8 @@ from os import path
 
 class Arguments(Tap):
 
-    perf_wave_path: Optional[str] = None  # Path to performance WAVE file.
+    # Path to performance WAVE file.
+    perf_wave_path: Optional[str] = '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/wav_files/bach_3.wav'
 
     # Path to score MIDI.
     score_midi_path: Optional[str] = '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/midi_files/Bach_1.midi'
@@ -15,6 +16,7 @@ class Arguments(Tap):
     # Sample rate to synthesise score and load performance wave file.
     sample_rate: int = const.DEFAULT_SAMPLE_RATE
     frame_length: int = const.DEFAULT_FRAME_LENGTH
+    hop_length: int = const.DEFAULT_HOP_LENGTH
 
     # GP hyperparameters
     M: int = const.DEFAULT_M
@@ -22,3 +24,10 @@ class Arguments(Tap):
     sigma_n: float = const.DEFAULT_SIGMA_N
     T: float = const.DEFAULT_T
     v: float = const.DEFAULT_V
+
+    # Follower parameters
+    window: int = 3
+
+    # Miscellaneous
+    # When streaming performance, reduce sleep time between streaming slices as sleeping is not entirely precise.
+    sleep_compensation: float = 0.0005
