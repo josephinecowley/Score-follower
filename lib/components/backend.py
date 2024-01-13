@@ -45,12 +45,10 @@ class Backend:
             if e is None:
                 return
             s = e[1]
-            if (self.backend_backtrack and s != prev_s) or (
-                not self.backend_backtrack and s > prev_s
-            ):
+            if s > prev_s:
                 timestamp_s = self.__get_online_timestamp(s)
                 # Output time! TODO this is where you change the code to make it print to a port!!!
-                print(timestamp_s, flush=True)
+                print("this!", timestamp_s, flush=True)
                 prev_s = s
 
     def __get_online_timestamp(self, s: int) -> float:

@@ -46,14 +46,12 @@ class Runner:
         self.__log(f"End: preprocess score")
 
         self.__log(f"Begin: precalculate covariance matrices")
-        cov_dict = self.__precalculate_cov(score[:50])
+        cov_dict = self.__precalculate_cov(score[:20])
         self.__log(f"End: precalculate covariance matrices")
 
         self.__log(f"Begin: initialise performance processor")
         perf_ap = self.__init_performance_processor(P_queue)
         self.__log(f"End: initialise performance processor")
-
-        perf_ap_proc = mp.Process(target=perf_ap.start)
 
         self.__log(f"Begin: initialise follower")
         follower = self.__init_follower(
@@ -68,10 +66,28 @@ class Runner:
         )
         self.__log(f"End: initialise backend")
 
+        perf_ap_proc = mp.Process(target=perf_ap.start)
+        follower_proc = mp.Process(target=follower.start)
+        backend_proc = mp.Process(target=backend.start)
+
+        # start from the back
+        self.__log(f"Starting: backend")
+        backend_proc.start()
+        self.__log(f"Starting: follower")
+        follower_proc.start()
+
         perf_start_time = time.perf_counter()
+
         self.__log(f"Starting: performance at {perf_start_time}")
         child_performance_stream_start_conn.send(perf_start_time)
-        # perf_ap_proc.start()
+        perf_ap_proc.start()
+
+        backend_proc.join()
+        self.__log("Joined: backend")
+        follower_proc.join()
+        self.__log("Joined: follower")
+        perf_ap_proc.terminate()  # use terminate as sometimes it hangs forever
+        self.__log("Joined: performance")
 
     def __init_performance_processor(
         self, P_queue: ExtractedFeatureQueue
@@ -82,8 +98,8 @@ class Runner:
             hop_length=args.hop_length,
             frame_length=args.frame_length,
             wave_path=args.perf_wave_path,
-            sleep_compensate=args.sleep_compensation,
-            output_queue=P_queue
+            output_queue=P_queue,
+            sleep_compensation=args.sleep_compensation,
         )
         return ap
 
