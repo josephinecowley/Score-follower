@@ -2,11 +2,13 @@ import numpy as np
 from .args import Arguments
 
 from .components.follower import Follower
+from .components.backend import Backend
 from collections import defaultdict
 from .eprint import eprint
 from midi.midi import process_midi_to_note_info, notes_to_chords, dict_to_frequency_list
 from GP_models.helper import SM_kernel
 from sharedtypes import (
+    List,
     ExtractedFeature,
     ExtractedFeatureQueue,
     FollowerOutputQueue,
@@ -57,6 +59,14 @@ class Runner:
         follower = self.__init_follower(
             follower_output_queue, P_queue, score, cov_dict)
         self.__log(f"End: initialise follower")
+
+        self.__log(f"Begin: initialise backend")
+        backend = self.__init_backend(
+            follower_output_queue,
+            parent_performance_stream_start_conn,
+            score,
+        )
+        self.__log(f"End: initialise backend")
 
         perf_start_time = time.perf_counter()
         self.__log(f"Starting: performance at {perf_start_time}")
@@ -122,6 +132,23 @@ class Runner:
             score=score,
             cov_dict=cov_dict,
             window=args.window
+        )
+
+    def __init_backend(
+        self,
+        follower_output_queue: FollowerOutputQueue,
+        performance_stream_start_conn: MultiprocessingConnection,
+        score_states: list,
+    ) -> Backend:
+        args = self.args
+
+        return Backend(
+            follower_output_queue=follower_output_queue,
+            performance_stream_start_conn=performance_stream_start_conn,
+            score_states=score_states,
+            hop_length=args.hop_length,
+            frame_length=args.frame_length,
+            sample_rate=args.sample_rate,
         )
 
     def __log(self, msg: str):
