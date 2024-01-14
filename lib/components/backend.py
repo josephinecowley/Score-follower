@@ -2,7 +2,6 @@ from ..eprint import eprint
 from typing import Callable, Iterator, List, Dict, Set
 from sharedtypes import (
     FollowerOutputQueue,
-    ModeType,
     NoteInfo,
     MultiprocessingConnection,
 )

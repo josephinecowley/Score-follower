@@ -17,14 +17,14 @@ class Slicer:
         hop_length: int,
         frame_length: int,
         sample_rate: int,
-        output_queue: AudioFrameQueue,
+        audio_frames_queue: AudioFrameQueue,
         sleep_compensation: float,
     ):
         self.wave_path = wave_path
         self.hop_length = hop_length
         self.frame_length = frame_length
         self.sample_rate = sample_rate
-        self.output_queue = output_queue
+        self.audio_frames_queue = audio_frames_queue
         self.sleep_compensation = sleep_compensation
 
         self.__log("Initialised successfully")
@@ -46,11 +46,11 @@ class Slicer:
 
         for s in audio_stream:
             pre_sleep_time = time.perf_counter()
-            self.output_queue.put(s)
+            self.audio_frames_queue.put(s)
             # sleep for hop length
             self.__sleep(self.hop_length, pre_sleep_time)
 
-        self.output_queue.put(None)  # end
+        self.audio_frames_queue.put(None)  # end
         self.__log("Finished")
 
     def __sleep(self, samples: int, pre_sleep_time: float):
@@ -74,7 +74,7 @@ class AudioPreprocessor:
         # slicer
         wave_path: str,
         sleep_compensation: float,
-        output_queue: AudioFrameQueue,
+        audio_frames_queue: AudioFrameQueue,
 
     ):
         self.sample_rate = sample_rate
@@ -82,7 +82,7 @@ class AudioPreprocessor:
         self.frame_length = frame_length
         self.wave_path = wave_path
         self.sleep_compensation = sleep_compensation
-        self.output_queue = output_queue
+        self.audio_frames_queue = audio_frames_queue
 
         self.__log("Initialised successfully")
 
@@ -94,7 +94,7 @@ class AudioPreprocessor:
             hop_length=self.hop_length,
             frame_length=self.frame_length,
             sample_rate=self.sample_rate,
-            output_queue=self.output_queue,
+            audio_frames_queue=self.audio_frames_queue,
             sleep_compensation=self.sleep_compensation,
         )
 
