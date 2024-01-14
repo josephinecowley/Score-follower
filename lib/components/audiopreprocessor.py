@@ -1,7 +1,7 @@
 from ..mputils import write_list_to_queue
 
 from ..eprint import eprint
-from sharedtypes import ExtractedFeature, ExtractedFeatureQueue
+from sharedtypes import AudioFrame, AudioFrameQueue
 from typing import Callable, Optional, Dict, List, Union
 
 import multiprocessing as mp
@@ -17,7 +17,7 @@ class Slicer:
         hop_length: int,
         frame_length: int,
         sample_rate: int,
-        output_queue: ExtractedFeatureQueue,
+        output_queue: AudioFrameQueue,
         sleep_compensation: float,
     ):
         self.wave_path = wave_path
@@ -74,7 +74,7 @@ class AudioPreprocessor:
         # slicer
         wave_path: str,
         sleep_compensation: float,
-        output_queue: ExtractedFeatureQueue,
+        output_queue: AudioFrameQueue,
 
     ):
         self.sample_rate = sample_rate
