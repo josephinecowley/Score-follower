@@ -148,7 +148,13 @@ class Runner:
             sample_rate=args.sample_rate,
             score=score,
             cov_dict=cov_dict,
-            window=args.window
+            window=args.window,
+            T=args.T,
+            v=args.v,
+            M=args.M,
+            sigma_f=args.sigma_f,
+            sigma_n=args.sigma_n,
+
         )
 
     def __init_backend(

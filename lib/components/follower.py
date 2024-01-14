@@ -21,6 +21,12 @@ class Follower:
             score: list,
             cov_dict: dict,
             window: int,
+            # GP model
+            T: float,
+            v: float,
+            M: int,
+            sigma_f: float,
+            sigma_n: float,
     ):
 
         self.follower_output_queue = follower_output_queue
@@ -30,6 +36,12 @@ class Follower:
         self.score = score
         self.cov_dict = cov_dict
         self.window = window
+        self.T = T
+        self.v = v
+        self.M = M
+        self.sigma_f = sigma_f
+        self.sigma_n = sigma_n
+
         self.frame_duration = self.frame_length/self.sample_rate
         self.frame_times = np.linspace(
             0, self.frame_duration, self.frame_length)
@@ -78,7 +90,7 @@ class Follower:
                     len(self.score) - state_number, self.window)  # TODO check there isn't a plus one here
                 for i in range(num_lookahead):
                     probabilities.append(stable_nlml(time_samples=self.frame_times, Y=frame,
-                                         T=0.465, v=2.37, M=13, sigma_f=5, normalised=False, f=self.score[state_number+i], cov_dict=self.cov_dict))  # TODO make variables be parsed arguments
+                                         T=self.T, v=self.v, M=self.M, sigma_f=self.sigma_f, sigma_n=self.sigma_n, normalised=False, f=self.score[state_number+i], cov_dict=self.cov_dict))  # TODO make variables be parsed arguments
                 priors = np.ones(num_lookahead)
                 probabilities = np.array(probabilities)
                 probabilities = probabilities * priors
