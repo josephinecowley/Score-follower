@@ -28,7 +28,6 @@ ExtractedFeature = NewType("ExtractedFeature", np.ndarray)  # type: ignore
 ExtractedFeatureQueue = NewType(
     "ExtractedFeatureQueue", "mp.Queue[Optional[ExtractedFeature]]"
 )
-ModeType = Literal["online", "offline"]
 
 FollowerOutputQueue = NewType(
     "FollowerOutputQueue", "mp.Queue[Optional[DTWPathElemType]]"

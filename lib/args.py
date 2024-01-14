@@ -3,6 +3,7 @@ from sys import exit
 from typing import Optional
 import lib.constants as const
 from os import path
+from sys import exit
 
 
 class Arguments(Tap):
@@ -31,3 +32,54 @@ class Arguments(Tap):
     # Miscellaneous
     # When streaming performance, reduce sleep time between streaming slices as sleeping is not entirely precise.
     sleep_compensation: float = 0.0005
+
+    def __log_and_exit(self, msg: str):
+        self.__log(f"Argument Error: {msg}.")
+        self.__log("Use the `--help` flag to show the help message.")
+        exit(1)
+
+    def sanitise(self):
+        if self.perf_wave_path:
+            if not path.isfile(self.perf_wave_path):
+                self.__log_and_exit(
+                    f"Performance wave file ({self.perf_wave_path}) does not exist"
+                )
+        #     else:
+        #         self.score_midi_path = path.abspath(self.perf_wave_path)
+
+        if self.score_midi_path:
+            if not path.isfile(self.score_midi_path):
+                self.__log_and_exit(
+                    f"Score MIDI file ({self.score_midi_path}) does not exist"
+                )
+        #     else:
+        #         self.score_midi_path = path.abspath(self.score_midi_path)
+        if self.sample_rate < 0:
+            self.__log_and_exit(f"sample_length must be positive")
+
+        if self.hop_length < 0:
+            self.__log_and_exit(f"hop_length must be positive")
+
+        if self.frame_length < 0:
+            self.__log_and_exit(f"frame_length must be positive")
+
+        if self.M < 0:
+            self.__log_and_exit(f"M must be positive")
+
+        if self.sigma_f < 0:
+            self.__log_and_exit(f"sigma_f must be positive")
+
+        if self.sigma_n < 0:
+            self.__log_and_exit(f"sigma_n must be positive")
+
+        if self.T < 0:
+            self.__log_and_exit(f"T must be positive")
+
+        if self.v < 0:
+            self.__log_and_exit(f"v must be positive")
+
+        if self.window < 0:
+            self.__log_and_exit(f"window must be positive")
+
+        if self.sleep_compensation < 0:
+            self.__log_and_exit(f"sleep_compensation must be positive")
