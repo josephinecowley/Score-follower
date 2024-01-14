@@ -144,6 +144,8 @@ class Runner:
         return Follower(
             follower_output_queue=follower_output_queue,
             audio_frames_queue=audio_frames_queue,
+            frame_length=args.frame_length,
+            sample_rate=args.sample_rate,
             score=score,
             cov_dict=cov_dict,
             window=args.window
