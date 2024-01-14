@@ -6,6 +6,7 @@ from sharedtypes import (
 )
 from ..eprint import eprint
 import numpy as np
+from GP_models.helper import stable_nlml
 
 
 class Follower:
@@ -49,26 +50,46 @@ class Follower:
         if not self.score:
             raise ValueError(f"Score states are empty")
 
-        # Begin score following
-        i = 0
-        self.follower_output_queue.put((i, i))
-        # Step 2
-        p_i = self.audio_frames_queue.get()
-        if p_i is None:
+        # Begin score following — initiate values
+        state_number, audio_frame_number = 0, 0
+        self.follower_output_queue.put((state_number, audio_frame_number))
+
+        frame = self.audio_frames_queue.get()
+        if frame is None:
             self.follower_output_queue.put(None)
             return
+
         while True:
-            if i == 100 - 1:
+            # If we reach the end of the score
+            if state_number == len(self.score):
                 self.follower_output_queue.put(None)
                 return
 
-            p_i = self.audio_frames_queue.get()
-            if p_i is None:
+            # Get new audio frame
+            frame = self.audio_frames_queue.get()
+            if frame is None:
                 self.follower_output_queue.put(None)
                 return
 
-            i += 1
-            self.follower_output_queue.put((i, i))
+            # If amplitude is great enough, perform alignment
+            if np.sum(abs(frame)) > 10:  # TODO check this value then make it a default argument value
+                probabilities = []
+                num_lookahead = min(
+                    len(self.score) - state_number, self.window)  # TODO check there isn't a plus one here
+                for i in range(num_lookahead):
+                    probabilities.append(stable_nlml(time_samples=self.frame_times, Y=frame,
+                                         T=0.465, v=2.37, M=13, sigma_f=5, normalised=False, f=self.score[state_number+i], cov_dict=self.cov_dict))  # TODO make variables be parsed arguments
+                priors = np.ones(num_lookahead)
+                probabilities = np.array(probabilities)
+                probabilities = probabilities * priors
+                print(probabilities, flush=True)
+
+                index = np.argmin(probabilities)
+
+                state_number += index
+
+            audio_frame_number += 1
+            self.follower_output_queue.put((state_number, audio_frame_number))
 
     def __log(self, msg: str):
         eprint(f"[{self.__class__.__name__}] {msg}")
