@@ -13,7 +13,7 @@ from scipy.signal.windows import hann, hamming
 import scipy.io.wavfile as wavf
 from tqdm import tqdm
 
-import inharmonicity
+from . import inharmonicity
 
 
 # ----------------------------------------------------------
@@ -289,7 +289,7 @@ def SM_kernel(X1, X2, M=12, f=[440], sigma_f=5,  B=None, T=None, v=None, amplitu
 
     cosine_series = np.zeros((X1.shape[0], X2.shape[0]))
 
-    for i, fundamental_frequency in tqdm(enumerate(f)):
+    for i, fundamental_frequency in enumerate(f):
         # Add inharmonicity constant, that depends on each fundamental frequency
         if B is None:
             closest_key = min(inharmonicity.B.keys(), key=lambda key: abs(
@@ -367,11 +367,11 @@ def stable_nlml(time_samples, Y,  cov_dict=None, M=15, sigma_f=5, f=[440], sigma
     if normalised is True:
         Y = Y/sum(abs(Y))
 
-    if cov_dict is None:
+    if cov_dict is not None and str(f) in cov_dict:
+        K = cov_dict[str(f)]  # Note this cov_dict already has noise added
+    else:
         K = SM_kernel(time_samples, time_samples, M=M, sigma_f=sigma_f, f=f, B=B, T=T, v=v, amplitude=amplitude) + \
             sigma_n**2 * np.eye(len(time_samples))
-    else:
-        K = cov_dict[str(f)]  # Note this cov_dict already has noise added
 
     L = cholesky(K)
 
