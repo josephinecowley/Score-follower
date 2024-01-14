@@ -3,7 +3,6 @@ from sharedtypes import (
     ExtractedFeature,
     ExtractedFeatureQueue,
     FollowerOutputQueue,
-    ModeType,
 )
 from ..eprint import eprint
 from typing import Callable, Dict, List
@@ -35,13 +34,15 @@ class Follower:
         self.__log("Finished...")
 
     def alignment(self):
-        # TODO RENAME THIS ALIGNMENT OR something suitable
         """
         Performs score following
         Writes to self.follower_output_queue
         """
-
-        # TODO add type checking
+        # Perform type checking
+        if not self.cov_dict:
+            raise ValueError(f"Empty covariance matrix")
+        if not self.score:
+            raise ValueError(f"Score states are empty")
         i = 0
         self.follower_output_queue.put((i, i))
         # Step 2
