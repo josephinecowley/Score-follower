@@ -1,7 +1,7 @@
 from ..mputils import consume_queue, write_list_to_queue
 from sharedtypes import (
-    ExtractedFeature,
-    ExtractedFeatureQueue,
+    AudioFrame,
+    AudioFrameQueue,
     FollowerOutputQueue,
 )
 from ..eprint import eprint
@@ -14,14 +14,14 @@ class Follower:
             # output queue
             follower_output_queue: FollowerOutputQueue,
             # Performance and Score info
-            P_queue: ExtractedFeatureQueue,
+            audio_frames_queue: AudioFrameQueue,
             score: list,
             cov_dict: dict,
             window: int,
     ):
 
         self.follower_output_queue = follower_output_queue
-        self.P_queue = P_queue
+        self.audio_frames_queue = audio_frames_queue
         self.score = score
         self.cov_dict = cov_dict
         self.window = window
@@ -46,7 +46,7 @@ class Follower:
         i = 0
         self.follower_output_queue.put((i, i))
         # Step 2
-        p_i = self.P_queue.get()
+        p_i = self.audio_frames_queue.get()
         if p_i is None:
             self.follower_output_queue.put(None)
             return
@@ -55,7 +55,7 @@ class Follower:
                 self.follower_output_queue.put(None)
                 return
 
-            p_i = self.P_queue.get()
+            p_i = self.audio_frames_queue.get()
             if p_i is None:
                 self.follower_output_queue.put(None)
                 return

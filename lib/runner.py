@@ -3,14 +3,13 @@ from .args import Arguments
 
 from .components.follower import Follower
 from .components.backend import Backend
-from collections import defaultdict
 from .eprint import eprint
 from midi.midi import process_midi_to_note_info, notes_to_chords, dict_to_frequency_list
 from GP_models.helper import SM_kernel
 from sharedtypes import (
     List,
-    ExtractedFeature,
-    ExtractedFeatureQueue,
+    AudioFrame,
+    AudioFrameQueue,
     FollowerOutputQueue,
     MultiprocessingConnection,
     NoteInfo,
@@ -23,7 +22,7 @@ import time
 class Runner:
     def __init__(self, args: Arguments):
         """
-        Precondition: assuming args.sanitize() was called.
+        Precondition: assuming args.sanitise() was called.
         """
         self.args = args
         self.frame_duration = self.args.frame_length/self.args.sample_rate
@@ -34,7 +33,7 @@ class Runner:
     def start(self):
         self.__log(f"STARTING")
 
-        P_queue: ExtractedFeatureQueue = mp.Queue()
+        audio_frames_queue: AudioFrameQueue = mp.Queue()
         follower_output_queue: FollowerOutputQueue = mp.Queue()
         (
             parent_performance_stream_start_conn,
@@ -50,12 +49,12 @@ class Runner:
         self.__log(f"End: precalculate covariance matrices")
 
         self.__log(f"Begin: initialise performance processor")
-        perf_ap = self.__init_performance_processor(P_queue)
+        perf_ap = self.__init_performance_processor(audio_frames_queue)
         self.__log(f"End: initialise performance processor")
 
         self.__log(f"Begin: initialise follower")
         follower = self.__init_follower(
-            follower_output_queue, P_queue, score, cov_dict)
+            follower_output_queue, audio_frames_queue, score, cov_dict)
         self.__log(f"End: initialise follower")
 
         self.__log(f"Begin: initialise backend")
@@ -90,7 +89,7 @@ class Runner:
         self.__log("Joined: performance")
 
     def __init_performance_processor(
-        self, P_queue: ExtractedFeatureQueue
+        self, audio_frames_queue: AudioFrameQueue
     ) -> AudioPreprocessor:
         args = self.args
         ap = AudioPreprocessor(
@@ -98,7 +97,7 @@ class Runner:
             hop_length=args.hop_length,
             frame_length=args.frame_length,
             wave_path=args.perf_wave_path,
-            output_queue=P_queue,
+            output_queue=audio_frames_queue,
             sleep_compensation=args.sleep_compensation,
         )
         return ap
@@ -137,14 +136,14 @@ class Runner:
     def __init_follower(
         self,
         follower_output_queue: FollowerOutputQueue,
-        P_queue: ExtractedFeatureQueue,
+        audio_frames_queue: AudioFrameQueue,
         score: list,
         cov_dict: dict,
     ) -> Follower:
         args = self.args
         return Follower(
             follower_output_queue=follower_output_queue,
-            P_queue=P_queue,
+            audio_frames_queue=audio_frames_queue,
             score=score,
             cov_dict=cov_dict,
             window=args.window
