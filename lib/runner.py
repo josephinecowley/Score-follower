@@ -33,13 +33,12 @@ class Runner:
 
     def start(self):
         self.__log(f"STARTING")
-
+        P_queue: ExtractedFeatureQueue = mp.Queue()
         follower_output_queue: FollowerOutputQueue = mp.Queue()
         (
             parent_performance_stream_start_conn,
             child_performance_stream_start_conn,
         ) = mp.Pipe()
-        P_queue: ExtractedFeatureQueue = mp.Queue()
 
         self.__log(f"Begin: preprocess score")
         score = self.__preprocess_score()
