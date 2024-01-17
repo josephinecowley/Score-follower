@@ -21,6 +21,7 @@ class Follower:
             score: list,
             cov_dict: dict,
             window: int,
+            back_track: int,
             # GP model
             T: float,
             v: float,
@@ -36,6 +37,7 @@ class Follower:
         self.score = score
         self.cov_dict = cov_dict
         self.window = window
+        self.back_track = back_track
         self.T = T
         self.v = v
         self.M = M
@@ -79,28 +81,36 @@ class Follower:
 
             # Get new audio frame
             frame = self.audio_frames_queue.get()
+            audio_frame_number += 1
             if frame is None:
                 self.follower_output_queue.put(None)
                 return
 
             # If amplitude is great enough, perform alignment
             if np.sum(abs(frame)) > 10:  # TODO check this value then make it a default argument value
-                probabilities = []
+                lml = []
                 num_lookahead = min(
-                    len(self.score) - state_number, self.window)  # TODO check there isn't a plus one here
+                    len(self.score) - state_number, self.window) + self.back_track  # TODO check there isn't a plus one here
                 for i in range(num_lookahead):
-                    probabilities.append(stable_nlml(time_samples=self.frame_times, Y=frame,
-                                         T=self.T, v=self.v, M=self.M, sigma_f=self.sigma_f, sigma_n=self.sigma_n, normalised=False, f=self.score[state_number+i], cov_dict=self.cov_dict))  # TODO make variables be parsed arguments
-                priors = np.ones(num_lookahead)
-                probabilities = np.array(probabilities)
-                probabilities = probabilities * priors
-                print(probabilities, flush=True)
+                    lml.append(-stable_nlml(time_samples=self.frame_times, Y=frame,
+                                            T=self.T, v=self.v, M=self.M, sigma_f=self.sigma_f, sigma_n=self.sigma_n, normalised=False, f=self.score[max(state_number+i-self.back_track, 0)], cov_dict=self.cov_dict))  # TODO make variables be parsed arguments
 
-                index = np.argmin(probabilities)
+                # TODO these need to be changed to be more realistic?
+                # priors = np.ones(num_lookahead)
+                priors = [0.99, 1, 0.99, 0.98]
+                lml = np.array(lml)
+                # Normalise to 1 so that we can feasibly compute the ml (e^lml)
+                normalised_lml = lml/np.sum(abs(lml))
+                posterior_ml = np.exp(normalised_lml) * priors
+                # print(probabilities, flush=True)
 
-                state_number += index
+                index = np.argmax(posterior_ml)
 
-            audio_frame_number += 1
+                state_number += index - self.back_track
+
+            else:
+                self.__log("Amplitude too small, skipping audio frame")
+
             self.follower_output_queue.put((state_number, audio_frame_number))
 
     def __log(self, msg: str):
