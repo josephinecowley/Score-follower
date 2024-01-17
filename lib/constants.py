@@ -2,7 +2,7 @@ import os
 
 DEFAULT_SAMPLE_RATE = 44100
 DEFAULT_FRAME_LENGTH = 1000
-DEFAULT_HOP_LENGTH = 10000
+DEFAULT_HOP_LENGTH = 16000
 
 REPO_ROOT = os.path.dirname(os.path.dirname(__file__))
 

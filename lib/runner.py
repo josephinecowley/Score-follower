@@ -1,6 +1,7 @@
 import numpy as np
 from .args import Arguments
 
+from .components.player import Player
 from .components.follower import Follower
 from .components.backend import Backend
 from .eprint import eprint
@@ -17,6 +18,7 @@ from sharedtypes import (
 import multiprocessing as mp
 from .components.audiopreprocessor import AudioPreprocessor
 import time
+from typing import Optional, Tuple, List
 
 
 class Runner:
@@ -75,12 +77,19 @@ class Runner:
         self.__log(f"Starting: follower")
         follower_proc.start()
 
+        player_proc = self.__init_player_if_required()
+        if player_proc:
+            self.__log(f"Starting: player")
+            player_proc.start()
         perf_start_time = time.perf_counter()
 
         self.__log(f"Starting: performance at {perf_start_time}")
         child_performance_stream_start_conn.send(perf_start_time)
         perf_ap_proc.start()
 
+        if player_proc:
+            player_proc.join()
+            self.__log("Joined: player")
         backend_proc.join()
         self.__log("Joined: backend")
         follower_proc.join()
@@ -110,7 +119,7 @@ class Runner:
         note_info = process_midi_to_note_info(args.score_midi_path)
         self.__log("Finished getting note info from score midi")
 
-        dic = notes_to_chords(note_info)
+        dic = notes_to_chords(note_info, sustain=False)
         self.__log("Finished getting chords from note info")
 
         score = dict_to_frequency_list(dic)
@@ -149,6 +158,7 @@ class Runner:
             score=score,
             cov_dict=cov_dict,
             window=args.window,
+            back_track=args.back_track,
             T=args.T,
             v=args.v,
             M=args.M,
@@ -173,6 +183,14 @@ class Runner:
             frame_length=args.frame_length,
             sample_rate=args.sample_rate,
         )
+
+    def __init_player_if_required(self) -> Optional[mp.Process]:
+        args = self.args
+        if args.play_performance_audio:
+            player = Player(args.perf_wave_path)
+            player_proc = mp.Process(target=player.play)
+            return player_proc
+        return None
 
     def __log(self, msg: str):
         eprint(f"[{self.__class__.__name__}] {msg}")

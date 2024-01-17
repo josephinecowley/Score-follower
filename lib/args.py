@@ -4,6 +4,7 @@ from typing import Optional
 import lib.constants as const
 from os import path
 from sys import exit
+from .eprint import eprint
 
 
 class Arguments(Tap):
@@ -28,10 +29,13 @@ class Arguments(Tap):
 
     # Follower parameters
     window: int = 3
+    back_track: int = 0
 
     # Miscellaneous
     # When streaming performance, reduce sleep time between streaming slices as sleeping is not entirely precise.
     sleep_compensation: float = 0.0005
+    # Whether to play the performance audio file when started. Requires `simulate_performance` to be set to True.
+    play_performance_audio: bool = True
 
     def __log_and_exit(self, msg: str):
         self.__log(f"Argument Error: {msg}.")
@@ -83,3 +87,6 @@ class Arguments(Tap):
 
         if self.sleep_compensation < 0:
             self.__log_and_exit(f"sleep_compensation must be positive")
+
+    def __log(self, msg: str):
+        eprint(f"[{self.__class__.__name__}] {msg}")
