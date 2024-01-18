@@ -10,7 +10,9 @@ from .eprint import eprint
 class Arguments(Tap):
 
     # Path to performance WAVE file.
-    perf_wave_path: Optional[str] = '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/wav_files/bach_3.wav'
+
+    # '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/wav_files/bach_3.wav'
+    perf_wave_path: Optional[str] = None
 
     # Path to score MIDI.
     score_midi_path: Optional[str] = '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/midi_files/Bach_1.midi'
@@ -19,6 +21,7 @@ class Arguments(Tap):
     sample_rate: int = const.DEFAULT_SAMPLE_RATE
     frame_length: int = const.DEFAULT_FRAME_LENGTH
     hop_length: int = const.DEFAULT_HOP_LENGTH
+    max_duration: Optional[float] = 20
 
     # GP hyperparameters
     M: int = const.DEFAULT_M
