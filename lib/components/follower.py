@@ -97,7 +97,7 @@ class Follower:
 
                 # TODO these need to be changed to be more realistic?
                 # priors = np.ones(num_lookahead)
-                priors = [0.99, 1, 0.99, 0.98]
+                priors = [1, 0.99, 0.98]
                 lml = np.array(lml)
                 # Normalise to 1 so that we can feasibly compute the ml (e^lml)
                 normalised_lml = lml/np.sum(abs(lml))

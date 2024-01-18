@@ -186,7 +186,7 @@ class Runner:
 
     def __init_player_if_required(self) -> Optional[mp.Process]:
         args = self.args
-        if args.play_performance_audio:
+        if args.play_performance_audio and args.perf_wave_path:
             player = Player(args.perf_wave_path)
             player_proc = mp.Process(target=player.play)
             return player_proc
