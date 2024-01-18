@@ -105,6 +105,7 @@ class Runner:
             sample_rate=args.sample_rate,
             hop_length=args.hop_length,
             frame_length=args.frame_length,
+            max_duration=args.max_duration,
             wave_path=args.perf_wave_path,
             audio_frames_queue=audio_frames_queue,
             sleep_compensation=args.sleep_compensation,

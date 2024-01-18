@@ -8,6 +8,7 @@ import multiprocessing as mp
 import librosa  # type: ignore
 import time
 import numpy as np
+import sys
 
 
 class Slicer:
@@ -19,6 +20,7 @@ class Slicer:
         sample_rate: int,
         audio_frames_queue: AudioFrameQueue,
         sleep_compensation: float,
+        max_duration: float,
     ):
         self.wave_path = wave_path
         self.hop_length = hop_length
@@ -26,6 +28,7 @@ class Slicer:
         self.sample_rate = sample_rate
         self.audio_frames_queue = audio_frames_queue
         self.sleep_compensation = sleep_compensation
+        self.max_duration = max_duration
 
         self.__log("Initialised successfully")
 
@@ -56,9 +59,17 @@ class Slicer:
             self.__log("Finished")
 
         else:
+            # If live listening
             self.__log("Starting to listen...")
+            with sd.InputStream(callback=self.__callback, channels=1, samplerate=self.sample_rate, blocksize=self.hop_length):
+                sd.sleep(self.max_duration * 1000)
             self.audio_frames_queue.put(None)  # end
             self.__log("Finished")
+
+    def __callback(self, indata, frames, time, status):
+        if status:
+            print(status, file=sys.stderr)
+        self.audio_frames_queue.put(indata[:self.frame_length])
 
     def __sleep(self, samples: int, pre_sleep_time: float):
         sleep_time = float(samples) / self.sample_rate
@@ -78,6 +89,7 @@ class AudioPreprocessor:
         sample_rate: int,
         hop_length: int,
         frame_length: int,
+        max_duration: float,
         # slicer
         wave_path: Optional[str],
         sleep_compensation: float,
@@ -87,6 +99,7 @@ class AudioPreprocessor:
         self.sample_rate = sample_rate
         self.hop_length = hop_length
         self.frame_length = frame_length
+        self.max_duration = max_duration
         self.wave_path = wave_path
         self.sleep_compensation = sleep_compensation
         self.audio_frames_queue = audio_frames_queue
@@ -100,6 +113,7 @@ class AudioPreprocessor:
             wave_path=self.wave_path,
             hop_length=self.hop_length,
             frame_length=self.frame_length,
+            max_duration=self.max_duration,
             sample_rate=self.sample_rate,
             audio_frames_queue=self.audio_frames_queue,
             sleep_compensation=self.sleep_compensation,
