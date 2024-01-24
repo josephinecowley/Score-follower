@@ -47,6 +47,7 @@ class Runner:
         self.__log(f"End: preprocess score")
 
         self.__log(f"Begin: precalculate covariance matrices")
+        # TODO at some point we may not want to have deleted repeats, so lets see once OLTW has been done
         cov_dict = self.__precalculate_cov(score[:20])
         self.__log(f"End: precalculate covariance matrices")
 
@@ -105,6 +106,7 @@ class Runner:
             sample_rate=args.sample_rate,
             hop_length=args.hop_length,
             frame_length=args.frame_length,
+
             max_duration=args.max_duration,
             wave_path=args.perf_wave_path,
             audio_frames_queue=audio_frames_queue,
@@ -149,6 +151,7 @@ class Runner:
         audio_frames_queue: AudioFrameQueue,
         score: list,
         cov_dict: dict,
+
     ) -> Follower:
         args = self.args
         return Follower(
@@ -165,6 +168,7 @@ class Runner:
             M=args.M,
             sigma_f=args.sigma_f,
             sigma_n=args.sigma_n,
+            mode=args.mode,
 
         )
 
@@ -183,6 +187,7 @@ class Runner:
             hop_length=args.hop_length,
             frame_length=args.frame_length,
             sample_rate=args.sample_rate,
+            backend_output=args.backend_output,
         )
 
     def __init_player_if_required(self) -> Optional[mp.Process]:
