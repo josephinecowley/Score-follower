@@ -31,10 +31,10 @@ class Backend:
         self.backend_output = backend_output
 
         # For the case when using UDP to be used in conjunction with the Fliipy Qualitiative Testbench scorer
-        if len(self.backend_output) > 4 and self.backend_output[:4] == "udp:":
-            backend_output_without_udp_scheme = self.backend_output[4:]
+        if self.backend_output[:4] == "udp:":
+            reduced_backend_output = self.backend_output[4:]
             # try to parse UDP IP and port
-            address_port = backend_output_without_udp_scheme.split(":")
+            address_port = reduced_backend_output.split(":")
             if len(address_port) != 2:
                 raise ValueError(
                     f"Unknown `backend_output`: {self.backend_output}")
@@ -60,22 +60,24 @@ class Backend:
     def __start_timestamp(self):
         prev_s = -1
         while True:
-            e = self.follower_output_queue.get()
-            if e is None:
+            path = self.follower_output_queue.get()
+            if path is None:
                 return
-            s = e[1]
-            state = e[0]
-            if s > prev_s:
-                timestamp_s = self.__get_online_timestamp(s)
-                # Output time! TODO this is where you change the code to make it print to a port!!!s
-                eprint(timestamp_s, flush=True)
-                if len(self.backend_output) > 4 and self.backend_output[:4] == "udp:":
-                    self.__socket.sendto(
-                        str(state).encode(), (self.addr, self.port))
-                prev_s = s
 
-    def __get_online_timestamp(self, s: int) -> float:
-        return float(self.frame_len + (s - 1) * self.hop_len) / self.sample_rate
+            state = path[0]
+            audio_frame = path[1]
+
+            if audio_frame > prev_s:
+                timestamp_s = self.__get_online_timestamp(state)
+                # Output time! TODO this is where you change the code to make it print to a port!!!s
+                eprint(state, audio_frame, timestamp_s, flush=True)
+                if self.backend_output[:4] == "udp:":
+                    self.__socket.sendto(
+                        str(timestamp_s).encode(), (self.addr, self.port))
+                prev_s = audio_frame
+
+    def __get_online_timestamp(self, state: int) -> float:
+        return float(state * self.hop_len) / self.sample_rate
 
     def __log(self, msg: str):
         eprint(f"[{self.__class__.__name__}] {msg}")
