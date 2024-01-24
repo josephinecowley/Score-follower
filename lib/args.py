@@ -5,6 +5,7 @@ import lib.constants as const
 from os import path
 from sys import exit
 from .eprint import eprint
+from sharedtypes import Mode
 
 
 class Arguments(Tap):
@@ -34,6 +35,7 @@ class Arguments(Tap):
     # Follower parameters
     window: int = 3
     back_track: int = 1
+    mode: Mode = "basic"  # TODO to implement also "oltw" and "HMM"
     # Either `stderr` or `udp:<HOSTNAME>:<PORT>` for UDP sockets + stderr
     backend_output = "udp:127.0.0.1:8080"
 

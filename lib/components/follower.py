@@ -3,6 +3,7 @@ from sharedtypes import (
     AudioFrame,
     AudioFrameQueue,
     FollowerOutputQueue,
+    Mode,
 )
 from ..eprint import eprint
 import numpy as np
@@ -14,6 +15,7 @@ class Follower:
             self,
             # output queue
             follower_output_queue: FollowerOutputQueue,
+
             # Performance and Score info
             audio_frames_queue: AudioFrameQueue,
             frame_length: int,
@@ -22,6 +24,8 @@ class Follower:
             cov_dict: dict,
             window: int,
             back_track: int,
+            mode: Mode,
+
             # GP model
             T: float,
             v: float,
@@ -43,19 +47,33 @@ class Follower:
         self.M = M
         self.sigma_f = sigma_f
         self.sigma_n = sigma_n
+        self.mode = mode
 
         self.frame_duration = self.frame_length/self.sample_rate
         self.frame_times = np.linspace(
             0, self.frame_duration, self.frame_length)
 
+        follower_options: dict = {
+            "basic": self.start_basic,
+            "oltw": self.start_oltw,
+        }
+        self.__start = follower_options.get(self.mode)
+        if self.__start is None:
+            raise ValueError(
+                f"Invalid score following mode {self.mode}."
+            )
+
         self.__log("Initialised successfully")
 
     def start(self):
         self.__log("Starting...")
-        self.alignment()
+        self.__start()
         self.__log("Finished...")
 
-    def alignment(self):
+    def start_oltw(self):
+        pass
+
+    def start_basic(self):
         """
         Performs score following
         Writes to self.follower_output_queue
@@ -87,7 +105,7 @@ class Follower:
                 return
 
             # If amplitude is great enough, perform alignment
-            if np.sum(abs(frame)) > 10:  # TODO check this value then make it a default argument value
+            if np.sum(abs(frame)) > 30:  # TODO check this value then make it a default argument value
                 lml = []
                 num_lookahead = min(
                     len(self.score) - state_number, self.window) + self.back_track  # TODO check there isn't a plus one here
@@ -97,7 +115,7 @@ class Follower:
 
                 # TODO these need to be changed to be more realistic?
                 # priors = np.ones(num_lookahead)
-                priors = [1, 0.99, 0.98]
+                priors = [0.98, 1, 0.98, 0.95]
                 lml = np.array(lml)
                 # Normalise to 1 so that we can feasibly compute the ml (e^lml)
                 normalised_lml = lml/np.sum(abs(lml))

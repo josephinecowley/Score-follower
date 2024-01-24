@@ -24,9 +24,9 @@ class NoteInfo:
         return hash((self.midi_note_num, self.note_start, self.note_end))
 
 
-ExtractedFeature = NewType("ExtractedFeature", np.ndarray)  # type: ignore
-ExtractedFeatureQueue = NewType(
-    "ExtractedFeatureQueue", "mp.Queue[Optional[ExtractedFeature]]"
+AudioFrame = NewType("AudioFrame", np.ndarray)  # type: ignore
+AudioFrameQueue = NewType(
+    "AudioFrameQueue", "mp.Queue[Optional[AudioFrame]]"
 )
 
 FollowerOutputQueue = NewType(
@@ -35,3 +35,5 @@ FollowerOutputQueue = NewType(
 MultiprocessingConnection = NewType(
     "MultiprocessingConnection", "mp.connection.Connection"
 )
+
+Mode = Literal["basic", "oltw", "HMM"]
