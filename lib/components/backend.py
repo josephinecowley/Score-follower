@@ -1,11 +1,9 @@
 from ..eprint import eprint
-from typing import Callable, Iterator, List, Dict, Set
+import sys
 from sharedtypes import (
     FollowerOutputQueue,
-    NoteInfo,
     MultiprocessingConnection,
 )
-import time
 import socket
 
 
@@ -22,6 +20,7 @@ class Backend:
             hop_length: int,
             frame_length: int,
             sample_rate: int,
+            backend_output: str,
     ):
         self.follower_output_queue = follower_output_queue
         self.performance_stream_start_conn = performance_stream_start_conn
@@ -29,6 +28,27 @@ class Backend:
         self.frame_len = frame_length
         self.score_states = score_states
         self.sample_rate = sample_rate
+        self.backend_output = backend_output
+
+        # For the case when using UDP to be used in conjunction with the Fliipy Qualitiative Testbench scorer
+        if len(self.backend_output) > 4 and self.backend_output[:4] == "udp:":
+            backend_output_without_udp_scheme = self.backend_output[4:]
+            # try to parse UDP IP and port
+            address_port = backend_output_without_udp_scheme.split(":")
+            if len(address_port) != 2:
+                raise ValueError(
+                    f"Unknown `backend_output`: {self.backend_output}")
+            self.addr = str(address_port[0])
+            self.port = int(address_port[1])
+
+            self.__socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            self.__log(
+                f"Backend will be outputting via UDP to {self.addr}:{self.port}")
+        elif self.backend_output == "stderr":
+            pass
+        else:
+            raise ValueError(
+                f"Unknown `backend_output`: {self.backend_output}")
 
         self.__log("Initialised successfully")
 
@@ -44,10 +64,14 @@ class Backend:
             if e is None:
                 return
             s = e[1]
+            state = e[0]
             if s > prev_s:
                 timestamp_s = self.__get_online_timestamp(s)
-                # Output time! TODO this is where you change the code to make it print to a port!!!
-                print("this!", timestamp_s, flush=True)
+                # Output time! TODO this is where you change the code to make it print to a port!!!s
+                eprint(timestamp_s, flush=True)
+                if len(self.backend_output) > 4 and self.backend_output[:4] == "udp:":
+                    self.__socket.sendto(
+                        str(state).encode(), (self.addr, self.port))
                 prev_s = s
 
     def __get_online_timestamp(self, s: int) -> float:
