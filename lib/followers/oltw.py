@@ -65,6 +65,7 @@ class Oltw:
         # A 2d array which saves all the audio frames, initiated to the length of the score
         self.P = np.zeros(
             (len(self.score), len(self.frame_length)), dtype=np.float64)
+        self.R = np.ones((len(self.score), len(self.score)))
 
         self.__log("Initialised successfully")
 
@@ -96,7 +97,7 @@ class Oltw:
         # Now calcualte raw likelihoods to populate R
         lml = -helper.stable_nlml(self.frame_times, p_i, cov_dict=self.cov_dict, M=self.M,
                                   sigma_f=self.sigma_f, f=s_j, sigma_n=self.sigma_n, T=self.T, v=self.v, normalised=False)
-        self.__save_lml_to_R(lml)
+        self.__save_lml_to_R(i, j, lml)
 
     def __save_p_i(self, i: int, audio_frame: np.ndarray):
         """ Save audio frame to 2d array for later reference"""
@@ -110,5 +111,35 @@ class Oltw:
         # Else simply save the result into the 2d array
         self.P[i] = audio_frame
 
-    def __save_lml_to_R(self, lml):
-        pass
+    def __save_lml_to_R(self, i, j, lml):
+        """
+        Save the lml value to the raw cost matrix R at R[i,j]
+        """
+        # If we have reached the end of the allocated space, append 50% more space
+        if i >= self.R.shape[0]:
+            # length to append in audio frames (i) direction
+            length_to_append = int(0.5 * self.P.shape[0])
+            self.R = np.append(self.R,
+                               np.ones(length_to_append, len(self.score),
+                                       dtype=np.float64) * np.inf,
+                               axis=0)
+        if (i, j) == (0, 0):
+            self.R[i][j] = lml
+        else:
+            self.R[i][j] = lml + min(
+                self.__R_get(i - 1, j - 1),
+                self.__R_get(i-1, j),
+                self.__R_get(i, j-1),
+            )
+
+    def __R_get(self, i: int, j: int) -> np.float64:
+        """
+        Return values of the lml Raw cost matrix for R[i, j]
+        """
+        # check we are access
+        if i >= self.R.shape[0] or j >= self.R.shape[1] or i < 0 or j < 0:
+            raise ValueError(
+                f"Values {i} or {j} are out of range for the matrix shape {self.R.shape}."
+            )
+
+        return self.R[i][j]
