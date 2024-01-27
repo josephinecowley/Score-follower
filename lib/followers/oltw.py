@@ -154,6 +154,9 @@ class Oltw:
             # Update the path values (i_prime and j_prime) and write to the output queue
             i_prime, j_prime = self.__get_path_values(i, j)
 
+            # Finally, put path values on the follower output queue
+            self.follower_output_queue.put((i_prime, j_prime))
+
     def __save_p_i(self, i: int, audio_frame: np.ndarray):
         """ Save audio frame to 2d array for later reference"""
 
