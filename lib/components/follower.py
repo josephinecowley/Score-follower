@@ -8,6 +8,7 @@ from sharedtypes import (
 from ..eprint import eprint
 import numpy as np
 from lib.followers.basic import Basic
+from lib.followers.oltw import Oltw
 
 
 class Follower:
@@ -25,6 +26,7 @@ class Follower:
             window: int,
             back_track: int,
             mode: Mode,
+            max_run_count: int,
 
             # GP model
             T: float,
@@ -32,6 +34,7 @@ class Follower:
             M: int,
             sigma_f: float,
             sigma_n: float,
+
     ):
 
         self.follower_output_queue = follower_output_queue
@@ -48,6 +51,7 @@ class Follower:
         self.sigma_f = sigma_f
         self.sigma_n = sigma_n
         self.mode = mode
+        self.max_run_count = max_run_count
 
         self.frame_duration = self.frame_length/self.sample_rate
         self.frame_times = np.linspace(
@@ -73,7 +77,7 @@ class Follower:
     def start_oltw(self):
         pass
 
-    def start_basic(self):
+    def start_basic(self):  # TODO rename basic to greedy
         basic_follower = Basic(
             follower_output_queue=self.follower_output_queue,
             audio_frames_queue=self.audio_frames_queue,
@@ -89,6 +93,25 @@ class Follower:
             M=self.M,
         )
         basic_follower.follow()
+
+    def start_oltw(self):
+        oltw_follower = Oltw(
+            follower_output_queue=self.follower_output_queue,
+            audio_frames_queue=self.audio_frames_queue,
+            score=self.score,
+            sigma_f=self.sigma_f,
+            sigma_n=self.sigma_n,
+            cov_dict=self.cov_dict,
+            back_track=self.back_track,
+            frame_times=self.frame_times,
+            window=self.window,
+            T=self.T,
+            v=self.v,
+            M=self.M,
+            max_run_count=self.max_run_count,
+            frame_length=self.frame_length,
+        )
+        oltw_follower.follow()
 
     def __log(self, msg: str):
         eprint(f"[{self.__class__.__name__}] {msg}")
