@@ -1,23 +1,13 @@
 import numpy as np
 import scipy.io.wavfile as wav
 import matplotlib.pyplot as plt
-from scipy.optimize import minimize
 from scipy.fft import fft
 from scipy.fft import fftfreq
 from librosa import note_to_hz as hz
 from scipy.signal.windows import hann, hamming
-
 import scipy.io.wavfile as wavf
 import inharmonicity
 
-import helper
-
-number_samples = 1500
-multiplier = 1.5
-
-
-fig = plt.figure()
-axes = []
 
 titles = ['piano_C4_262', 'piano_D4_294',
           'piano_E4_330', 'piano_f4_349', 'piano_G4_392', 'piano_A4_440', 'piano_B4_494', 'piano_C5_523']
@@ -25,7 +15,7 @@ frequencies = [262, 294, 330, 349, 392, 440, 494, 523]
 # Single note
 wav_file = '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/wav_files/G_diminished.wav'
 sample_rate, data = wav.read(wav_file)
-data = data[3000:10000]
+data = data[3000:6000]
 audio_duration = len(data)/sample_rate
 time_samples = np.linspace(0, audio_duration, len(data))
 
@@ -37,7 +27,7 @@ def psd(audio_samples: np.ndarray, sample_rate: int) -> np.ndarray:
     return psd[:(len(audio_samples)//8)], frequency_axis[:(len(audio_samples)//8)]
 
 
-def phi_row(frequency_inputs, fundamental, M=12, std_dev=10, v=None, T=None, B=None):
+def phi_row(frequency_inputs, fundamental, M=12, std_dev=10, v=None, T=None, B=None, missing_fund=0):
     positive = np.zeros(len(frequency_inputs))
     if v is None:
         v = 2.37
@@ -48,15 +38,16 @@ def phi_row(frequency_inputs, fundamental, M=12, std_dev=10, v=None, T=None, B=N
             key - fundamental))
         B = inharmonicity.B[closest_key]
     for m in range(M):
-        inharmonicity_const = np.sqrt((1 + B * (m+1)**2))
-        frequency = (m+1) * fundamental * inharmonicity_const
-        filter = 1/(1 + (T*(m+1))**v)
+        # TODO set to 2 for missing fund
+        inharmonicity_const = np.sqrt((1 + B * (m+1+missing_fund)**2))
+        frequency = (m+1+missing_fund) * fundamental * inharmonicity_const
+        filter = 1/(1 + (T*(m+1+missing_fund))**v)
         positive += filter * np.exp(-np.power((frequency_inputs -
                                               frequency) / std_dev, 2.0) / 2)
     return 1.0 / (np.sqrt(2.0 * np.pi) * std_dev) * positive
 
 
-def phi_matrix(frequency_axis, f, M=12, sigma_f=3, T=None, v=None, B=None):
+def phi_matrix(frequency_axis, f, M=10, sigma_f=10, T=None, v=None, B=None):
     phi = np.zeros((len(f), len(frequency_axis)))
     for i, fundamental_frequency in enumerate(f):
         phi[i] = phi_row(
@@ -64,9 +55,9 @@ def phi_matrix(frequency_axis, f, M=12, sigma_f=3, T=None, v=None, B=None):
     return phi.T
 
 
-def least_squares(data, sample_rate=44100, f=[440], M=10, sigma_f=5, T=None, v=None, B=None, show=False):
+def opt_amplitude(data, sample_rate=44100, f=[440], M=10, sigma_f=10, T=None, v=None, B=None, show=False):
     """
-    Returns an array a of amplitudes corresponding to each note source
+    Returns a flattened array a of amplitudes corresponding to each note source
     """
     psd_data, frequency_axis = psd(data, sample_rate)
     psd_data = psd_data.reshape((-1, 1))
@@ -81,11 +72,11 @@ def least_squares(data, sample_rate=44100, f=[440], M=10, sigma_f=5, T=None, v=N
         plt.plot(frequency_axis, prediction,
                  label="Kernel in frequency domain")
         plt.legend()
-    return a,  prediction, psd_data, frequency_axis, sq_res[0, 0]
+    return a.flatten(),  prediction, psd_data, frequency_axis, sq_res[0, 0]
 
 
-frequencies = hz(['G3', 'A#3', 'C#4', 'E4'])
+# frequencies = hz(['G3', 'A#3', 'C#4', 'E4'])
 
-a = least_squares(data, f=frequencies, M=6, T=2, show=True, sigma_f=2)[0]
-print(a)
-plt.show()
+# a = opt_amplitude(data, f=frequencies, M=6, T=2, show=True, sigma_f=2)[0]
+# print(a)
+# plt.show()
