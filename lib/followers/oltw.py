@@ -66,7 +66,7 @@ class Oltw:
 
         # A 2d array which saves all the audio frames, initiated to the length of the score
         self.P = np.zeros(
-            (len(self.score), len(self.frame_length)), dtype=np.float64)
+            (len(self.score), self.frame_length), dtype=np.float64)
         self.R = np.ones((len(self.score), len(self.score)))
 
         self.__log("Initialised successfully")
@@ -125,7 +125,7 @@ class Oltw:
 
                 # Compute the required R elements
                 for J in range(max(0, j-self.window + 1), j + 1):
-                    s_J = self.S[J]
+                    s_J = self.score[J]
                     lml = -helper.stable_nlml(self.frame_times, p_i, cov_dict=self.cov_dict, M=self.M,
                                               sigma_f=self.sigma_f, f=s_J, sigma_n=self.sigma_n, T=self.T, v=self.v, normalised=False)
                     self.__save_lml_to_R(i, J, lml)
@@ -192,10 +192,12 @@ class Oltw:
         Return values of the lml Raw cost matrix for R[i, j]
         """
         # check we are access
-        if i >= self.R.shape[0] or j >= self.R.shape[1] or i < 0 or j < 0:
+        if i >= self.R.shape[0] or j >= self.R.shape[1]:
             raise ValueError(
                 f"Values {i} or {j} are out of range for the matrix shape {self.R.shape}."
             )
+        if i < 0 or j < 0:
+            return np.float64(-np.inf)
 
         return self.R[i][j]
 
@@ -237,3 +239,6 @@ class Oltw:
                 max_R = self.R[i_prime][j_prime]
             curr_j -= 1
         return i_prime, j_prime
+
+    def __log(self, msg: str):
+        eprint(f"[{self.__class__.__name__}] {msg}")
