@@ -54,6 +54,7 @@ class Oltw:
         self.back_track = back_track
         self.window = window
         self.max_run_count = max_run_count
+        self.run_count: int = 1
 
         self.cov_dict = cov_dict
         self.frame_times = frame_times
@@ -67,7 +68,7 @@ class Oltw:
         # A 2d array which saves all the audio frames, initiated to the length of the score
         self.P = np.zeros(
             (len(self.score), self.frame_length), dtype=np.float64)
-        self.R = np.ones((len(self.score), len(self.score)))
+        self.R = -np.ones((len(self.score), len(self.score))) * np.inf
 
         self.__log("Initialised successfully")
 
@@ -87,12 +88,16 @@ class Oltw:
         self.follower_output_queue.put((i_prime, j_prime))
 
         # Get the first audio frame and save it to a matrix
+
         p_i = self.audio_frames_queue.get()
+        while np.sum(np.abs(p_i)) < 75:
+            print(f"Amplitude too small, moving onto next audio frame")
+            p_i = self.audio_frames_queue.get()
+
         if p_i is None:
             self.follower_output_queue.put(None)
             return
         self.__save_p_i(i, p_i)
-
         # Get the first score state
         s_j = self.score[j]
 
@@ -114,13 +119,20 @@ class Oltw:
 
             # If need to incremenet i
             if Direction.I in current:
-                # increment i
-                i += 1
-                # obtain the new audio frame
-                p_i = self.audio_frames_queue.get()
+                # Increment the audio frame
+                p_i: np.ndarray = self.audio_frames_queue.get()
+                # Get next audio frame (ensuring its loud enough and not None)
+                while np.sum(np.abs(p_i)) < 75:  # Add a threshold
+                    # obtain the new audio frame
+                    print(
+                        f"amplitude too small, going on to next audio frame", flush=True)
+                    p_i: np.ndarray = self.audio_frames_queue.get()
                 if p_i is None:
                     self.follower_output_queue.put(None)
                     return
+
+                # Increment i
+                i += 1
                 self.__save_p_i(i, p_i)
 
                 # Compute the required R elements
@@ -150,16 +162,16 @@ class Oltw:
                 self.run_count = 1
             # now set the current direction to the previous one, ready for the next iteration
             previous = current
-
             # Update the path values (i_prime and j_prime) and write to the output queue
             i_prime, j_prime = self.__get_path_values(i, j)
 
             # Finally, put path values on the follower output queue
-            self.follower_output_queue.put((i_prime, j_prime))
+            self.follower_output_queue.put((j_prime, i_prime))
 
     def __save_p_i(self, i: int, audio_frame: np.ndarray):
         """ Save audio frame to 2d array for later reference"""
-
+        audio_frame = audio_frame.ravel(
+        )  # TODO this may be  temporary-- changed to (1000,) rather than (1000,1)
         # If we have reached the end of the allocated space, append 50% more space
         if i >= self.P.shape[0]:
             length_to_append = int(0.5 * self.P.shape[0])
@@ -184,7 +196,7 @@ class Oltw:
         if (i, j) == (0, 0):
             self.R[i][j] = lml
         else:
-            self.R[i][j] = lml + min(
+            self.R[i][j] = lml + max(
                 self.__R_get(i - 1, j - 1),
                 self.__R_get(i-1, j),
                 self.__R_get(i, j-1),
@@ -232,7 +244,7 @@ class Oltw:
         curr_i = i
         while curr_i >= 0 and curr_i > (i-self.window):
             if self.R[curr_i][j] > max_R:
-                i_prime, jPrime = (curr_i, j)
+                i_prime, j_prime = (curr_i, j)
                 max_R = self.R[i_prime, j_prime]
             curr_i -= 1
         curr_j = j - 1
