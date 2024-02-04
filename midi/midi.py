@@ -25,7 +25,10 @@ def dict_to_frequency_list(chords: dict) -> list:
     Also should be ok once adding time information for the HMMs.
     """
     sorted_time_keys = sorted(chords.keys(), reverse=False)
-    return [chords[key] for key in sorted_time_keys]
+    time_to_next = [(sorted_time_keys[i+1] - sorted_time_keys[i])
+                    for i in range(len(sorted_time_keys)-1)]
+    score = [chords[key] for key in sorted_time_keys]
+    return score, time_to_next
     # score_no_repeats = [score[0]]
     # for sublist in score[1:]:
     #     if sublist != score_no_repeats[-1]:
