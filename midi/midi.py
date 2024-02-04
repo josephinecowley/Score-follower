@@ -19,6 +19,11 @@ def process_midi_to_note_info(midi_path: str) -> List[NoteInfo]:
 
 
 def dict_to_frequency_list(chords: dict) -> list:
+    """
+    TODO note: No longer deleting repeats here, instead in dictionary generation. This is only an option as well. 
+    This was done so that using the score renderer it wouldn't create gaps. 
+    Also should be ok once adding time information for the HMMs.
+    """
     sorted_time_keys = sorted(chords.keys(), reverse=False)
     return [chords[key] for key in sorted_time_keys]
     # score_no_repeats = [score[0]]
