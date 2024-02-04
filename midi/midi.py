@@ -20,12 +20,12 @@ def process_midi_to_note_info(midi_path: str) -> List[NoteInfo]:
 
 def dict_to_frequency_list(chords: dict) -> list:
     sorted_time_keys = sorted(chords.keys(), reverse=False)
-    score = [chords[key] for key in sorted_time_keys]
-    score_no_repeats = [score[0]]
-    for sublist in score[1:]:
-        if sublist != score_no_repeats[-1]:
-            score_no_repeats.append(sublist)
-    return score_no_repeats
+    return [chords[key] for key in sorted_time_keys]
+    # score_no_repeats = [score[0]]
+    # for sublist in score[1:]:
+    #     if sublist != score_no_repeats[-1]:
+    #         score_no_repeats.append(sublist)
+    # return score_no_repeats
 
 
 def notes_to_chords(notes: List[NoteInfo], sustain: bool = False, remove_repeats: bool = False) -> dict:
