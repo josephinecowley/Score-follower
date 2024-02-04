@@ -5,6 +5,7 @@ from itertools import chain
 import numpy as np
 import matplotlib.pyplot as plt
 from collections import defaultdict
+# import GP_models.helper
 
 
 def process_midi_to_note_info(midi_path: str) -> List[NoteInfo]:
@@ -36,7 +37,8 @@ def notes_to_chords(notes: List[NoteInfo], sustain: bool = False) -> dict:
     active_notes = set()
 
     for note_info in notes:
-        note_frequency = 440 * (2 ** ((note_info.midi_note_num - 69) / 12.0))
+        note_frequency = round(
+            440 * (2 ** ((note_info.midi_note_num - 69) / 12.0)))
         note_start_time = note_info.note_start
         note_end_time = note_info.note_end
 
@@ -55,6 +57,21 @@ def notes_to_chords(notes: List[NoteInfo], sustain: bool = False) -> dict:
                 grouped_notes[note_start_time].append(note_frequency)
         else:
             grouped_notes[note_start_time].append(note_frequency)
+    grouped_notes = remove_repeated_chords_from_dict(grouped_notes)
+    return grouped_notes
+
+
+def remove_repeated_chords_from_dict(grouped_notes: dict):
+    keys_to_remove = []
+    prev_value = None
+
+    for key, value in grouped_notes.items():
+        if value == prev_value:
+            keys_to_remove.append(key)
+        prev_value = value
+
+    for key in keys_to_remove:
+        del grouped_notes[key]
 
     return grouped_notes
 
@@ -112,7 +129,8 @@ def process_track(
                         NoteInfo(
                             msg.note,
                             start_time,
-                            end_time
+                            end_time,
+                            (end_time - start_time),
                         )
                     )
 
