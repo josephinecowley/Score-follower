@@ -97,11 +97,13 @@ class Viterbi:
                 self.follower_output_queue.put(None)
                 return
 
+            # Get next audio frame
             frame = self.get_next_frame()
             if frame is None:
                 self.follower_output_queue.put(None)
                 return
 
+            # Iterate through the states
             k0_index = self.chunk * self.step
             for k in range(k0_index, k0_index + self.window):
                 lml = -helper.stable_nlml(self.time_samples, frame, M=9, normalised=False,
@@ -110,6 +112,9 @@ class Viterbi:
                     self.gamma[k, self.i-1] + self.transmission[k, k]
                 advance_state = lml + \
                     self.gamma[k-1, self.i-1] + self.transmission[k-1, k]
+                self.gamma[k, self.i] = np.max(same_state, advance_state)
+
+            # Determine most likely state
 
     def get_next_frame(self):
         """
