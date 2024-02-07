@@ -68,3 +68,14 @@ class Viterbi:
         self.max_s = 0  # maximum likelihood current state
         self.chunk = 0
         self.step = window//3
+
+        self.__log("Initialised successfully")
+
+    def follow(self):
+        """
+        Performs score following using an on-line implementation of the Viterbi algorithm.
+        Writes to self.follower_outpu_queue
+        """
+
+    def __log(self, msg: str):
+        eprint(f"[{self.__class__.__name__}] {msg}")
