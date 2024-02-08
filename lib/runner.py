@@ -7,7 +7,7 @@ from .components.backend import Backend
 from .eprint import eprint
 from midi.midi import process_midi_to_note_info, notes_to_chords, dict_to_frequency_list
 from GP_models.helper import SM_kernel
-from sharedtypes import (
+from midi.sharedtypes import (
     List,
     AudioFrame,
     AudioFrameQueue,
@@ -47,7 +47,7 @@ class Runner:
         self.__log(f"End: preprocess score")
 
         self.__log(f"Begin: precalculate covariance matrices")
-        # TODO at some point we may not want to have deleted repeats, so lets see once OLTW has been done
+        # TODO at some point we may not want to have deleted repeats, since this causes state to stay the same...
         cov_dict = self.__precalculate_cov(score[:20])
         self.__log(f"End: precalculate covariance matrices")
 
@@ -106,7 +106,6 @@ class Runner:
             sample_rate=args.sample_rate,
             hop_length=args.hop_length,
             frame_length=args.frame_length,
-
             max_duration=args.max_duration,
             wave_path=args.perf_wave_path,
             audio_frames_queue=audio_frames_queue,
@@ -151,7 +150,6 @@ class Runner:
         audio_frames_queue: AudioFrameQueue,
         score: list,
         cov_dict: dict,
-
     ) -> Follower:
         args = self.args
         return Follower(
@@ -169,6 +167,8 @@ class Runner:
             sigma_f=args.sigma_f,
             sigma_n=args.sigma_n,
             mode=args.mode,
+            max_run_count=args.max_run_count,
+            threshold=args.threshold,
 
         )
 
