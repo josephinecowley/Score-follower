@@ -97,7 +97,7 @@ class Viterbi:
                 self.follower_output_queue.put(None)
                 return
 
-            # Get next audio frame
+            # Get next audio frame and increment i
             frame = self.get_next_frame()
             if frame is None:
                 self.follower_output_queue.put(None)
@@ -115,6 +115,14 @@ class Viterbi:
                 self.gamma[k, self.i] = np.max(same_state, advance_state)
 
             # Determine most likely state
+            max_s = np.argmax(self.gamma[:, self.i])
+
+            # Print to outut queue
+            self.follower_output_queue.put((max_s, self.i))
+
+            # Update chunk
+            if max_s >= k0_index + self.window - self.step:
+                self.chunk += 1
 
     def get_next_frame(self):
         """
@@ -126,6 +134,7 @@ class Viterbi:
             self.__log(f"Amplitude too small, moving onto next audio frame")
             frame = self.audio_frames_queue.get()
 
+        self.i += 1  # Update frame number
         return frame
 
     def __log(self, msg: str):
