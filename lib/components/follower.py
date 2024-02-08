@@ -1,5 +1,5 @@
 from ..mputils import consume_queue, write_list_to_queue
-from sharedtypes import (
+from midi.sharedtypes import (
     AudioFrame,
     AudioFrameQueue,
     FollowerOutputQueue,
@@ -9,6 +9,7 @@ from ..eprint import eprint
 import numpy as np
 from lib.followers.basic import Basic
 from lib.followers.oltw import Oltw
+from lib.followers.viterbi import Viterbi
 
 
 class Follower:
@@ -27,6 +28,7 @@ class Follower:
             back_track: int,
             mode: Mode,
             max_run_count: int,
+            threshold: float,
 
             # GP model
             T: float,
@@ -52,6 +54,7 @@ class Follower:
         self.sigma_n = sigma_n
         self.mode = mode
         self.max_run_count = max_run_count
+        self.threshold = threshold
 
         self.frame_duration = self.frame_length/self.sample_rate
         self.frame_times = np.linspace(
@@ -60,6 +63,7 @@ class Follower:
         follower_options: dict = {
             "basic": self.start_basic,
             "oltw": self.start_oltw,
+            "viterbi": self.start_viterbi,
         }
         self.__start = follower_options.get(self.mode)
         if self.__start is None:
@@ -74,8 +78,22 @@ class Follower:
         self.__start()
         self.__log("Finished...")
 
-    def start_oltw(self):
-        pass
+    def start_viterbi(self):
+        viterbi_follower = Viterbi(
+            follower_output_queue=self.follower_output_queue,
+            audio_frames_queue=self.audio_frames_queue,
+            score=self.score,
+            frame_times=self.frame_times,
+            window=self.window,
+            threshold=self.threshold,
+            sigma_f=self.sigma_f,
+            sigma_n=self.sigma_n,
+            cov_dict=self.cov_dict,
+            T=self.T,
+            v=self.v,
+            M=self.M,
+            frame_length=self.frame_length,
+        )
 
     def start_basic(self):  # TODO rename basic to greedy
         basic_follower = Basic(
