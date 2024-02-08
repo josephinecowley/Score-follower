@@ -7,7 +7,7 @@ from .components.backend import Backend
 from .eprint import eprint
 from midi.midi import process_midi_to_note_info, notes_to_chords, dict_to_frequency_list
 from GP_models.helper import SM_kernel
-from midi.sharedtypes import (
+from lib.sharedtypes import (
     List,
     AudioFrame,
     AudioFrameQueue,
@@ -43,7 +43,7 @@ class Runner:
         ) = mp.Pipe()
 
         self.__log(f"Begin: preprocess score")
-        score = self.__preprocess_score()
+        score, time_to_next = self.__preprocess_score()
         self.__log(f"End: preprocess score")
 
         self.__log(f"Begin: precalculate covariance matrices")
@@ -121,7 +121,7 @@ class Runner:
         note_info = process_midi_to_note_info(args.score_midi_path)
         self.__log("Finished getting note info from score midi")
 
-        dic = notes_to_chords(note_info, sustain=False)
+        dic = notes_to_chords(note_info, sustain=False, remove_repeats=False)
         self.__log("Finished getting chords from note info")
 
         score = dict_to_frequency_list(dic)
@@ -149,6 +149,7 @@ class Runner:
         follower_output_queue: FollowerOutputQueue,
         audio_frames_queue: AudioFrameQueue,
         score: list,
+        time_to_next: list,
         cov_dict: dict,
     ) -> Follower:
         args = self.args
@@ -157,6 +158,7 @@ class Runner:
             audio_frames_queue=audio_frames_queue,
             frame_length=args.frame_length,
             sample_rate=args.sample_rate,
+            time_to_next=time_to_next,
             score=score,
             cov_dict=cov_dict,
             window=args.window,

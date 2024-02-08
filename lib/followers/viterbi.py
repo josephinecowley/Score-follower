@@ -19,6 +19,7 @@ class Viterbi:
         follower_output_queue: FollowerOutputQueue,
         audio_frames_queue: AudioFrameQueue,
         score: list,
+        time_to_next: list,
 
         frame_times: np.ndarray,
         window: int,
@@ -38,6 +39,7 @@ class Viterbi:
         self.follower_output_queue = follower_output_queue
         self.audio_frames_queue = audio_frames_queue
         self.score = score
+        self.time_to_next = time_to_next
 
         self.window = window
         self.threshold = threshold
@@ -92,7 +94,6 @@ class Viterbi:
         self.gamma[0, 0] = lml  # Initialise probability of first audio sample
 
         while True:
-            print("here")
 
             # Terminate if final state reached
             if self.max_s == len(self.score) - 1:
@@ -119,10 +120,9 @@ class Viterbi:
 
             # Determine most likely state
             max_s = np.argmax(self.gamma[:, self.i])
-            print(max_s, self.i)
 
             # Print to outut queue
-            # self.follower_output_queue.put((max_s, self.i))
+            self.follower_output_queue.put((max_s, self.i))
 
             # Update chunk
             if max_s >= k0_index + self.window - self.step:

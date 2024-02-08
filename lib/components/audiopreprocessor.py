@@ -1,7 +1,7 @@
 from ..mputils import write_list_to_queue
 
 from ..eprint import eprint
-from sharedtypes import AudioFrame, AudioFrameQueue
+from lib.sharedtypes import AudioFrame, AudioFrameQueue
 from typing import Callable, Optional, Dict, List, Union
 import sounddevice as sd
 import multiprocessing as mp
@@ -63,8 +63,8 @@ class Slicer:
             self.__log("Starting to listen...")
             with sd.InputStream(callback=self.__callback, channels=1, samplerate=self.sample_rate, blocksize=self.hop_length):
                 sd.sleep(self.max_duration * 1000)
+            self.__log("Finished: duration max timeout")
             self.audio_frames_queue.put(None)  # end
-            self.__log("Finished")
 
     def __callback(self, indata, frames, time, status):
         if status:
