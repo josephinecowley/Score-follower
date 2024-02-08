@@ -1,7 +1,7 @@
 from ..eprint import eprint
 import numpy as np
 from GP_models.helper import stable_nlml
-from midi.sharedtypes import (
+from lib.sharedtypes import (
     AudioFrame,
     AudioFrameQueue,
     FollowerOutputQueue,
@@ -40,7 +40,7 @@ class Viterbi:
         self.score = score
 
         self.window = window
-        self.threshold: int = 75,
+        self.threshold = threshold
 
         self.cov_dict = cov_dict
         # TODO need to change the rest of the repo's naming convention so we dont muddle frames and samples
@@ -55,16 +55,17 @@ class Viterbi:
         # Viterbi data structures
         self.K = len(score)  # Total number of states in HMM
 
-        # Initialise transmission matrix
-        self.transmission = np.full((self.K, self.K), -np.inf)
-        for i in range(self.K-1):
-            T[i][i], T[i][i+1] = np.log(0.5), np.log(0.5)
-        T[-1][-1] = np.log(1)
-
         # TODO— change this 1000 to be a number updated dynamically.With hop length 5000, ~500 would be one minute
         self.gamma = np.full((self.K, 1000), -np.inf,
                              'd')  # Probability matrix
         self.delta = np.zeros((self.K, 1000), 'B')  # Back pointers
+
+        # Initialise transmission matrix
+        self.transmission = np.full((self.K, self.K), -np.inf)
+        for i in range(self.K-1):
+            self.transmission[i][i], self.transmission[i][i +
+                                                          1] = np.log(0.5), np.log(0.5)
+        self.transmission[-1][-1] = np.log(1)
 
         self.max_s = 0  # maximum likelihood current state
         self.chunk = 0
@@ -91,6 +92,7 @@ class Viterbi:
         self.gamma[0, 0] = lml  # Initialise probability of first audio sample
 
         while True:
+            print("here")
 
             # Terminate if final state reached
             if self.max_s == len(self.score) - 1:
@@ -99,6 +101,7 @@ class Viterbi:
 
             # Get next audio frame and increment i
             frame = self.get_next_frame()
+            self.i += 1
             if frame is None:
                 self.follower_output_queue.put(None)
                 return
@@ -112,13 +115,14 @@ class Viterbi:
                     self.gamma[k, self.i-1] + self.transmission[k, k]
                 advance_state = lml + \
                     self.gamma[k-1, self.i-1] + self.transmission[k-1, k]
-                self.gamma[k, self.i] = np.max(same_state, advance_state)
+                self.gamma[k, self.i] = np.max([same_state, advance_state])
 
             # Determine most likely state
             max_s = np.argmax(self.gamma[:, self.i])
+            print(max_s, self.i)
 
             # Print to outut queue
-            self.follower_output_queue.put((max_s, self.i))
+            # self.follower_output_queue.put((max_s, self.i))
 
             # Update chunk
             if max_s >= k0_index + self.window - self.step:
@@ -134,7 +138,6 @@ class Viterbi:
             self.__log(f"Amplitude too small, moving onto next audio frame")
             frame = self.audio_frames_queue.get()
 
-        self.i += 1  # Update frame number
         return frame
 
     def __log(self, msg: str):
