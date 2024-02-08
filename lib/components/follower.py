@@ -1,5 +1,5 @@
 from ..mputils import consume_queue, write_list_to_queue
-from midi.sharedtypes import (
+from lib.sharedtypes import (
     AudioFrame,
     AudioFrameQueue,
     FollowerOutputQueue,
@@ -23,6 +23,7 @@ class Follower:
             frame_length: int,
             sample_rate: int,
             score: list,
+            time_to_next: list,
             cov_dict: dict,
             window: int,
             back_track: int,
@@ -44,6 +45,7 @@ class Follower:
         self.frame_length = frame_length
         self.sample_rate = sample_rate
         self.score = score
+        self.time_to_next = time_to_next
         self.cov_dict = cov_dict
         self.window = window
         self.back_track = back_track
@@ -83,6 +85,7 @@ class Follower:
             follower_output_queue=self.follower_output_queue,
             audio_frames_queue=self.audio_frames_queue,
             score=self.score,
+            time_to_next=self.time_to_next,
             frame_times=self.frame_times,
             window=self.window,
             threshold=self.threshold,
@@ -94,6 +97,7 @@ class Follower:
             M=self.M,
             frame_length=self.frame_length,
         )
+        viterbi_follower.follow()
 
     def start_basic(self):  # TODO rename basic to greedy
         basic_follower = Basic(

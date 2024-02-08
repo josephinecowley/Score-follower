@@ -1,6 +1,6 @@
 from ..eprint import eprint
 import sys
-from sharedtypes import (
+from lib.sharedtypes import (
     FollowerOutputQueue,
     MultiprocessingConnection,
 )
@@ -9,7 +9,7 @@ import socket
 
 class Backend:
     """
-    Outputs results of alignment
+    Places tuples of (state_number, audio_frame_number) onto the follwer output queue
     """
 
     def __init__(
@@ -58,7 +58,7 @@ class Backend:
         self.__log("Finished")
 
     def __start_timestamp(self):
-        prev_s = -1
+        prev_state = -1
         while True:
             path = self.follower_output_queue.get()
             if path is None:
@@ -67,14 +67,17 @@ class Backend:
             state = path[0]
             audio_frame = path[1]
 
-            if audio_frame > prev_s:
+            # if state > prev_state:  # TODO atm we are assuming no backtracking
+            if state >= prev_state:
                 timestamp_s = self.__get_online_timestamp(state)
                 # Output time! TODO this is where you change the code to make it print to a port!!!s
-                eprint(state, audio_frame, timestamp_s, flush=True)
+                # TODO make this back to eprint once done
+                print(
+                    f"state: {state}, audio frame: {audio_frame}, timestamp: {timestamp_s}", flush=True)
                 if self.backend_output[:4] == "udp:":
                     self.__socket.sendto(
                         str(timestamp_s).encode(), (self.addr, self.port))
-                prev_s = audio_frame
+                prev_state = state
 
     def __get_online_timestamp(self, state: int) -> float:
         return float(state * self.hop_len) / self.sample_rate
