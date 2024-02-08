@@ -5,13 +5,14 @@ import lib.constants as const
 from os import path
 from sys import exit
 from .eprint import eprint
-from sharedtypes import Mode
+from midi.sharedtypes import Mode
 
 
 class Arguments(Tap):
 
     # Path to performance WAVE file.
 
+    # None
     # '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/wav_files/bach_3.wav'
     perf_wave_path: Optional[str] = None
 
@@ -33,11 +34,13 @@ class Arguments(Tap):
     v: float = const.DEFAULT_V
 
     # Follower parameters
-    window: int = 3
-    back_track: int = 1
-    mode: Mode = "basic"  # TODO to implement also "oltw" and "HMM"
+    window: int = 7
+    back_track: int = 0
+    mode: Mode = "oltw"  # TODO to implement also "oltw" and "HMM"
     # Either `stderr` or `udp:<HOSTNAME>:<PORT>` for UDP sockets + stderr
-    backend_output = "udp:127.0.0.1:8080"
+    backend_output: str = "udp:127.0.0.1:8080"
+    max_run_count: int = 100
+    threshold: float = 75
 
     # Miscellaneous
     # When streaming performance, reduce sleep time between streaming slices as sleeping is not entirely precise.
