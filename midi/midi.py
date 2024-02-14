@@ -1,5 +1,6 @@
 from typing import List
-from sharedtypes import NoteInfo
+from lib.sharedtypes import NoteInfo
+# from sharedtypes import NoteInfo
 import mido
 from itertools import chain
 import numpy as np
@@ -28,7 +29,9 @@ def dict_to_frequency_list(chords: dict) -> list:
     time_to_next = [(sorted_time_keys[i+1] - sorted_time_keys[i])
                     for i in range(len(sorted_time_keys)-1)]
     score = [chords[key] for key in sorted_time_keys]
-    return score, time_to_next
+    score_times = np.cumsum(time_to_next)/1000
+    score_times = np.insert(score_times, 0, 0)
+    return score, time_to_next, score_times
     # score_no_repeats = [score[0]]
     # for sublist in score[1:]:
     #     if sublist != score_no_repeats[-1]:

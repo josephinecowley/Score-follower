@@ -43,12 +43,12 @@ class Runner:
         ) = mp.Pipe()
 
         self.__log(f"Begin: preprocess score")
-        score, time_to_next = self.__preprocess_score()
+        score, time_to_next, score_times = self.__preprocess_score()
         self.__log(f"End: preprocess score")
 
         self.__log(f"Begin: precalculate covariance matrices")
         # TODO at some point we may not want to have deleted repeats, since this causes state to stay the same...
-        cov_dict = self.__precalculate_cov(score[:20])
+        cov_dict = self.__precalculate_cov(score[:100])
         self.__log(f"End: precalculate covariance matrices")
 
         self.__log(f"Begin: initialise performance processor")
@@ -57,7 +57,7 @@ class Runner:
 
         self.__log(f"Begin: initialise follower")
         follower = self.__init_follower(
-            follower_output_queue, audio_frames_queue, score, cov_dict)
+            follower_output_queue, audio_frames_queue, score, cov_dict=cov_dict, time_to_next=time_to_next, score_times=score_times)
         self.__log(f"End: initialise follower")
 
         self.__log(f"Begin: initialise backend")
@@ -150,6 +150,7 @@ class Runner:
         audio_frames_queue: AudioFrameQueue,
         score: list,
         time_to_next: list,
+        score_times: np.ndarray,
         cov_dict: dict,
     ) -> Follower:
         args = self.args
@@ -158,7 +159,10 @@ class Runner:
             audio_frames_queue=audio_frames_queue,
             frame_length=args.frame_length,
             sample_rate=args.sample_rate,
+            hop_length=args.hop_length,
+            state_duration_model=args.state_duration_model,
             time_to_next=time_to_next,
+            score_times=score_times,
             score=score,
             cov_dict=cov_dict,
             window=args.window,
