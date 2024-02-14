@@ -22,14 +22,17 @@ class Follower:
             audio_frames_queue: AudioFrameQueue,
             frame_length: int,
             sample_rate: int,
+            hop_length: int,
             score: list,
             time_to_next: list,
+            score_times: np.ndarray,
             cov_dict: dict,
             window: int,
             back_track: int,
             mode: Mode,
             max_run_count: int,
             threshold: float,
+            state_duration_model: bool,
 
             # GP model
             T: float,
@@ -44,10 +47,13 @@ class Follower:
         self.audio_frames_queue = audio_frames_queue
         self.frame_length = frame_length
         self.sample_rate = sample_rate
+        self.hop_length = hop_length
         self.score = score
         self.time_to_next = time_to_next
+        self.score_times = score_times
         self.cov_dict = cov_dict
         self.window = window
+        self.state_duration_model = state_duration_model
         self.back_track = back_track
         self.T = T
         self.v = v
@@ -86,7 +92,10 @@ class Follower:
             audio_frames_queue=self.audio_frames_queue,
             score=self.score,
             time_to_next=self.time_to_next,
+            score_times=self.score_times,
             frame_times=self.frame_times,
+            hop_length=self.hop_length,
+            state_duration_model=self.state_duration_model,
             window=self.window,
             threshold=self.threshold,
             sigma_f=self.sigma_f,

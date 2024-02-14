@@ -5,7 +5,7 @@ import lib.constants as const
 from os import path
 from sys import exit
 from .eprint import eprint
-from midi.sharedtypes import Mode
+from lib.sharedtypes import Mode
 
 
 class Arguments(Tap):
@@ -14,11 +14,13 @@ class Arguments(Tap):
 
     # None
     # '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/wav_files/bach_3.wav'
+    # '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/wav_files/bach_3.wav'
+    # '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/wav_files/bach_3.wav'
     perf_wave_path: Optional[str] = None
 
     # Path to score MIDI.
     # '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/midi_files/Bach_1.midi'
-    score_midi_path: Optional[str] = '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/midi_files/Bach_1.midi'
+    score_midi_path: Optional[str] = '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/midi_files/PRELUDE.midi'
 
     # Sample rate to synthesise score and load performance wave file.
     sample_rate: int = const.DEFAULT_SAMPLE_RATE
@@ -34,13 +36,15 @@ class Arguments(Tap):
     v: float = const.DEFAULT_V
 
     # Follower parameters
-    window: int = 7
+    window: int = 6
     back_track: int = 0
-    mode: Mode = "oltw"  # TODO to implement also "oltw" and "HMM"
+    mode: Mode = "viterbi"  # TODO to implement also "oltw" and "viterbi"
+    # Whether to take into account state duration model transitions
+    state_duration_model: bool = False
     # Either `stderr` or `udp:<HOSTNAME>:<PORT>` for UDP sockets + stderr
     backend_output: str = "udp:127.0.0.1:8080"
     max_run_count: int = 100
-    threshold: float = 75
+    threshold: float = 10.0
 
     # Miscellaneous
     # When streaming performance, reduce sleep time between streaming slices as sleeping is not entirely precise.

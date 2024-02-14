@@ -12,17 +12,17 @@ from scipy.fft import fftfreq
 from scipy.signal.windows import hann, hamming
 import scipy.io.wavfile as wavf
 from tqdm import tqdm
-
 from . import inharmonicity
-
+# import inharmonicity
 
 # ----------------------------------------------------------
 # Helper plotting functions
 # ----------------------------------------------------------
 
+
 def plot_audio(T, data, show=False, title="Plot of audio wave"):
     """
-    Visualise audio data.
+    Visualise audio data. 
 
     Args:
         T: 1D numpy array of time samples.
@@ -50,10 +50,10 @@ def plot_fft(data, sample_rate=44100, power_spectrum=False, title='Spectrum', co
     """
     w = hann(len(data))
     if power_spectrum is False:
-        fft_data = abs(fft(data*w, norm="ortho"))
+        fft_data = np.abs(fft(data*w, norm="ortho"))
 
     else:
-        fft_data = np.sqrt(abs(fft(data*w, norm="ortho")))
+        fft_data = np.abs(fft(data*w, norm="ortho"))**2
     frequency_axis = fftfreq(len(data), d=1.0/sample_rate)
     plt.plot(frequency_axis[:(len(data)//8)],
              fft_data[:(len(data)//8)], colour, label='Audio')
@@ -185,7 +185,7 @@ def return_gaussian(f_spectrum, mu, sig, max_freq=5000, show=False, no_samples=1
     return output
 
 
-def return_kernel_spectrum(f=[440], M=12, sigma_f=5, show=False, max_freq=10000, no_samples=10000, sample_rate=44100, amplitude=1, B=None, T=None, v=None):
+def return_kernel_spectrum(f=[440], M=12, sigma_f=1/500000, show=False, max_freq=10000, no_samples=10000, sample_rate=44100, amplitude=1, B=None, T=None, v=None):
     f_spectrum = np.linspace(0, max_freq, no_samples)
     f_spectrum = fftfreq(no_samples, d=1.0/sample_rate)
     output = np.zeros(len(f_spectrum))
@@ -232,7 +232,7 @@ def return_kernel_spectrum(f=[440], M=12, sigma_f=5, show=False, max_freq=10000,
 # ----------------------------------------------------------
 
 
-def impimproved_SM_kernel(X1, X2, M=56, f=[440, 35], sigma_f=5, B=None, T=None, v=None, amplitude=None):
+def impimproved_SM_kernel(X1, X2, M=56, f=[440, 35], sigma_f=1/500000, B=None, T=None, v=None, amplitude=None):
     # WIP
     M = int(M)
     f = np.array(f)
@@ -261,7 +261,7 @@ def impimproved_SM_kernel(X1, X2, M=56, f=[440, 35], sigma_f=5, B=None, T=None, 
     return np.exp(-2 * np.pi**2 * sigma_f**2 * sqdist) * matrix
 
 
-def SM_kernel(X1, X2, M=12, f=[440], sigma_f=5,  B=None, T=None, v=None, amplitude=None):
+def SM_kernel(X1, X2, M: int = 12, f: list = [440], sigma_f: float = 1/500000, B=None, T=None, v=None, amplitude=None):
     """
     SM kernel.
 
@@ -307,7 +307,7 @@ def SM_kernel(X1, X2, M=12, f=[440], sigma_f=5,  B=None, T=None, v=None, amplitu
     return np.exp(-2 * np.pi**2 * sigma_f**2 * sqdist) * cosine_series
 
 
-def RBF_kernel(X1, X2, l=1.0, sigma_f=1.0):
+def RBF_kernel(X1, X2, l=1.0, sigma_f=1/500000,):
     """
     Isotropic squared exponential kernel.
 
@@ -327,7 +327,7 @@ def RBF_kernel(X1, X2, l=1.0, sigma_f=1.0):
 # ----------------------------------------------------------
 
 
-def nlml(time_samples, Y, cov_s=None, M=10, sigma_f=0.2, f=[400],  B=None, sigma_n=1e-2, T=None, v=None, amplitude=None):
+def nlml(time_samples, Y, cov_s=None, M=10, sigma_f=1/500000, f=[400],  B=None, sigma_n=1e-2, T=None, v=None, amplitude=None):
     """
     Return Negative Log Marginal Likelihood.
     Assumes zero mean, and does not add noise to ensure positive definite covariance matrix.
@@ -348,7 +348,7 @@ def nlml(time_samples, Y, cov_s=None, M=10, sigma_f=0.2, f=[400],  B=None, sigma
     return 0.5 * Y.dot(inv(K).dot(Y)) + 0.5 * np.log(det(K)) + 0.5 * len(time_samples) * np.log(2*np.pi)
 
 
-def stable_nlml(time_samples, Y,  cov_dict=None, M=15, sigma_f=5, f=[440], sigma_n=1e-2, B=None, T=0.465, v=2.37, amplitude=None, normalised=True):
+def stable_nlml(time_samples, Y,  cov_dict=None, M=15, sigma_f=1/500000, f=[440], sigma_n=1e-2, B=None, T=0.465, v=2.37, amplitude=None, normalised=False):
     """
     Return Negative Log Marginal Likelihood via stable method.
     Assumes zero mean.
@@ -383,7 +383,7 @@ def stable_nlml(time_samples, Y,  cov_dict=None, M=15, sigma_f=5, f=[440], sigma
         0.5 * len(time_samples) * np.log(2*np.pi)
 
 
-def relative_nlml(time_samples, Y,  M=15, sigma_f=1/500000, f=[440], sigma_n=1e-2, B=None, T=2, v=5, amplitude=None, normalised=True):
+def relative_nlml(time_samples, Y,  M=15, sigma_f=1/500000, f=[440], sigma_n=1e-2, B=None, T=2, v=5, amplitude=None, normalised=False):
     """
     This uses the stable implementation as written in stable_nlml. (see above)
     After exploring the effects of the separate terms, it was decided to 
@@ -401,7 +401,7 @@ def relative_nlml(time_samples, Y,  M=15, sigma_f=1/500000, f=[440], sigma_n=1e-
     L = cholesky(K)
 
     S1 = solve_triangular(L, Y, lower=True)
-    S2 = solve_triangular(L.T, S1, lower=False)
+    S2 = solve_triangular(L.T, S1, lower=False)  # This is our alpha
 
     return 0.5 * Y.dot(S2)
 # ----------------------------------------------------------
@@ -409,7 +409,7 @@ def relative_nlml(time_samples, Y,  M=15, sigma_f=1/500000, f=[440], sigma_n=1e-
 # ----------------------------------------------------------
 
 
-def posterior(T_test, T_train, Y_train, M=14, sigma_f=10, sigma_y=0.0001, f=[440], B=None, T=None, v=None, amplitude=None):
+def posterior(T_test, T_train, Y_train, M=14, sigma_f=1/500000, sigma_y=0.0001, f=[440], B=None, T=None, v=None, amplitude=None):
     """
     Computes the sufficient statistics of the posterior distribution 
     from m training data T_train and Y_train and n new inputs T_test.
@@ -486,7 +486,7 @@ def golden_section_f(x1, x2, X_train, Y_train, M=8, sigma=1e-2, tol=1, integer_s
     return x3
 
 
-def golden_section_B(B1, B2, X_train, Y_train, f=[440], M=12, sigma_f=0.2, tol=0.00008, amplitude=0.000205):
+def golden_section_B(B1, B2, X_train, Y_train, f=[440], M=12, sigma_f=1/500000, tol=0.00008, amplitude=0.000205):
     # Initial points
     f1 = stable_nlml(X_train, Y_train, M=M, sigma_f=sigma_f,
                      f=f, B=B1, amplitude=amplitude)
@@ -521,7 +521,7 @@ def golden_section_B(B1, B2, X_train, Y_train, f=[440], M=12, sigma_f=0.2, tol=0
     return B3
 
 
-def nlml_fn(X_train, Y_train, f=[440], sigma_f=2.5,  M=12, naive=False):
+def nlml_fn(X_train, Y_train, f=[440], sigma_f=1/500000,  M=12, naive=False):
     """
     Returns a function that computes the negative log marginal
     likelihood for training data X_train and Y_train and given

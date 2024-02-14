@@ -20,6 +20,7 @@ class Viterbi:
         audio_frames_queue: AudioFrameQueue,
         score: list,
         time_to_next: list,
+        score_times: np.ndarray,
 
         # Alignment parameters
         hop_length: int,
@@ -43,6 +44,7 @@ class Viterbi:
         self.audio_frames_queue = audio_frames_queue
         self.score = score
         self.time_to_next = time_to_next
+        self.score_times = score_times
 
         self.hop_length = hop_length
         self.window = window
@@ -109,7 +111,6 @@ class Viterbi:
         lml_scaled = np.sign(lml) * np.abs(lml)**0.05
         # Initialise probability of first audio sample
         self.gamma[0, 0] = lml_scaled
-        print("lml_scaled ", lml_scaled)
 
         advance_transition = np.log(0.5)
         self_transition = np.log(0.5)
@@ -145,7 +146,6 @@ class Viterbi:
                                           f=self.score[k], T=self.T, v=self.v, cov_dict=self.cov_dict)
                 lml_scaled = np.sign(lml) * np.abs(lml)**0.05
 
-                print("lml scaled ", lml_scaled)
                 same_state = lml_scaled + \
                     self.gamma[k, self.i-1] + self_transition
                 advance_state = lml_scaled + \
@@ -170,8 +170,9 @@ class Viterbi:
             self.max_s = new_s
 
             # Print to outut queue
-            print(self.max_s, self.i, flush=True)
-            self.follower_output_queue.put((self.max_s, self.i))
+            # print(self.max_s, self.i, flush=True)
+            self.follower_output_queue.put(
+                (self.max_s, self.score_times[self.max_s]))
 
             # Update chunk
             if self.max_s >= k0_index + self.window - self.step:
