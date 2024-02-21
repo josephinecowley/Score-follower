@@ -9,6 +9,7 @@ from lib.sharedtypes import (
 from enum import Enum
 from typing import Set, Tuple
 from GP_models import helper
+import time
 
 
 class Viterbi:
@@ -61,34 +62,7 @@ class Viterbi:
         self.M = M
         self.frame_length = frame_length
 
-        # Viterbi data structures
-        self.K = len(score)  # Total number of states in HMM
-
         # TODO— change this 1000 to be a number updated dynamically.With hop length 5000, ~500 would be one minute
-        self.gamma = np.full((self.K, 1000), -np.inf,
-                             'd')  # Probability matrix
-        self.delta = np.zeros((self.K, 1000), 'B')  # Back pointers
-
-        # # Initialise transmission matrix
-        # self.transmission = np.full((self.K, self.K), -np.inf)
-        # for i in range(self.K-1):
-        #     self.transmission[i][i], self.transmission[i][i +
-        #                                                   1] = np.log(0.5), np.log(0.5)
-        # self.transmission[-1][-1] = np.log(1)
-        # TODO need to deal with next transitiono for the final state in piece somehow, now that ive deleted the transition matrix
-
-        # On-line viterbi parameters
-        self.max_s = 0  # maximum likelihood current state
-        self.chunk = 0
-        self.step = window//3
-        self.i = 0  # columns of gamma matrix
-
-        # State duration model parameters
-        # This keeps track of state durationm, d, the cumulative number of times we stay in state max_s
-        self.counter = []
-
-        # This keeps a running updated conversion rate (i.e. a kind of tempo measure)
-        self.conversion_rate = self.hop_length / self.time_to_next[0]
 
         self.__log("Initialised successfully")
 
@@ -97,7 +71,18 @@ class Viterbi:
         Performs score following using an on-line implementation of the Viterbi algorithm.
         Writes to self.follower_outpu_queue
         """
-        d = 1  # We initialise state duration d to 1
+
+        # Initialise on-line viterbi variables
+        gamma = np.full((len(self.score), 1000), -np.inf, 'd')
+        max_s = 0
+        i = 0  # column number of gamma matrix
+        chunk = 0  # keeps track of on-line viterbi window location
+        step = self.window//3  # Threshold to trigger next chunk
+
+        # Initialise state duration variables
+        conversion_rate = self.hop_length / self.time_to_next[0]
+        counter = []  # This keeps track of state durations, d
+        d = 1
 
         # Get the first audio frame and check not None
         frame = self.get_next_frame()
@@ -110,7 +95,7 @@ class Viterbi:
                                   f=self.score[0], T=self.T, v=self.v, cov_dict=self.cov_dict)
         lml_scaled = np.sign(lml) * np.abs(lml)**0.05
         # Initialise probability of first audio sample
-        self.gamma[0, 0] = lml_scaled
+        gamma[0, 0] = lml_scaled
 
         advance_transition = np.log(0.5)
         self_transition = np.log(0.5)
@@ -118,65 +103,73 @@ class Viterbi:
         while True:
 
             # Terminate if final state reached
-            if self.max_s == len(self.score) - 1:
+            if max_s == len(self.score) - 1:
                 self.follower_output_queue.put(None)
                 return
 
             # Get next audio frame and increment i
             frame = self.get_next_frame()
-            self.i += 1
+            i += 1
             if frame is None:
                 self.follower_output_queue.put(None)
                 return
 
+            # Lengthen gamma matrix if needed
+            if i > gamma.shape[1]:
+                desired_len = int(i * 1.5)
+                columns_to_add = desired_len - gamma.shape[1]
+                gamma = np.append(gamma, np.full(
+                    (len(self.score), columns_to_add), -np.inf, 'd'))
+
             # Re-calculate transmission probabilities if taking into account state duration models
             if self.state_duration_model:
-                expected = self.conversion_rate * \
-                    self.time_to_next[self.max_s] / 1000
+                expected = conversion_rate * \
+                    self.time_to_next[max_s] / 1000
                 p = 1 / expected  # probability
                 q = 1 - p
-                advance_transition = np.log(
-                    np.sum([q**i * p for i in range(d)]))
+                advance_transition = np.sum([q**z * p for z in range(d)])
                 self_transition = np.log(1 - advance_transition)
+                advance_transition = np.log(advance_transition)
 
-            # Iterate through the states
-            k0_index = self.chunk * self.step
+            # Iterate through states in window
+            k0_index = chunk * step
             for k in range(k0_index, k0_index + self.window):
-                lml = -helper.stable_nlml(self.time_samples, frame, M=9, normalised=False,
+                lml = -helper.stable_nlml(self.time_samples, frame, M=self.M, normalised=False,
                                           f=self.score[k], T=self.T, v=self.v, cov_dict=self.cov_dict)
                 lml_scaled = np.sign(lml) * np.abs(lml)**0.05
 
                 same_state = lml_scaled + \
-                    self.gamma[k, self.i-1] + self_transition
+                    gamma[k, i-1] + self_transition
                 advance_state = lml_scaled + \
-                    self.gamma[k-1, self.i-1] + advance_transition
-                self.gamma[k, self.i] = np.max([same_state, advance_state])
+                    gamma[k-1, i-1] + advance_transition
+                gamma[k, i] = np.max(
+                    [same_state, advance_state])
 
             # Determine most likely state
-            new_s = np.argmax(self.gamma[:, self.i])
+            new_s = np.argmax(gamma[:, i])
 
             # If required, update state duration d
             if self.state_duration_model:
-                if new_s == self.max_s:
+                if new_s == max_s:
                     d += 1  # If still in same state, keep d the same
                 else:
-                    self.counter.append(d)
-                    conversion_rates = 1000 * np.array(self.counter) / np.array(
-                        self.time_to_next[:len(self.counter)])  # Multiply by 1000 to make seconds
+                    counter.append(d)
+                    conversion_rates = 1000 * np.array(counter) / np.array(
+                        self.time_to_next[:len(counter)])
                     # We take the running mean average
-                    self.conversion_rate = np.mean(conversion_rates)
+                    conversion_rate = np.mean(conversion_rates)
                     d = 1
 
-            self.max_s = new_s
+            max_s = new_s
 
             # Print to outut queue
-            # print(self.max_s, self.i, flush=True)
+            print(max_s, flush=True)
             self.follower_output_queue.put(
-                (self.max_s, self.score_times[self.max_s]))
+                (max_s, self.score_times[max_s]))  # also returning score times for legacy reasons TODO: delete at end of project
 
             # Update chunk
-            if self.max_s >= k0_index + self.window - self.step:
-                self.chunk += 1
+            if max_s >= k0_index + self.window - step:
+                chunk += 1
 
     def get_next_frame(self):
         """
