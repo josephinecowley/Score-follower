@@ -69,14 +69,14 @@ class Backend:
 
             # if state > prev_state:  # TODO atm we are assuming no backtracking
             if state > prev_state:
-                timestamp_s = self.__get_online_timestamp(state)
+                # timestamp_s = self.__get_online_timestamp(state)
                 # Output time! TODO this is where you change the code to make it print to a port!!!s
                 # TODO make this back to eprint once done
-                print(
-                    f"state: {state}, audio frame: ?, timestamp: {score_time}", flush=True)
+                # print(
+                #     f"state: {state}, audio frame: ?, timestamp: {score_time}", flush=True)
                 if self.backend_output[:4] == "udp:":
                     self.__socket.sendto(
-                        str(score_time).encode(), (self.addr, self.port))
+                        str(state).encode(), (self.addr, self.port))
                 prev_state = state
 
     def __get_online_timestamp(self, state: int) -> float:

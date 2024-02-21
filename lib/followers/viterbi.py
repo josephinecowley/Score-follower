@@ -62,8 +62,6 @@ class Viterbi:
         self.M = M
         self.frame_length = frame_length
 
-        # TODO— change this 1000 to be a number updated dynamically.With hop length 5000, ~500 would be one minute
-
         self.__log("Initialised successfully")
 
     def follow(self):
@@ -94,13 +92,13 @@ class Viterbi:
         lml = -helper.stable_nlml(self.time_samples, frame, M=self.M, normalised=False,
                                   f=self.score[0], T=self.T, v=self.v, cov_dict=self.cov_dict)
         lml_scaled = np.sign(lml) * np.abs(lml)**0.05
-        # Initialise probability of first audio sample
         gamma[0, 0] = lml_scaled
 
         advance_transition = np.log(0.5)
         self_transition = np.log(0.5)
 
         while True:
+            t3 = time.time()
 
             # Terminate if final state reached
             if max_s == len(self.score) - 1:
@@ -108,7 +106,10 @@ class Viterbi:
                 return
 
             # Get next audio frame and increment i
+            t1 = time.time()
             frame = self.get_next_frame()
+            t2 = time.time()
+            # print("Time to get next frame", t2 - t1, flush=True)
             i += 1
             if frame is None:
                 self.follower_output_queue.put(None)
@@ -170,6 +171,8 @@ class Viterbi:
             # Update chunk
             if max_s >= k0_index + self.window - step:
                 chunk += 1
+            t4 = time.time()
+            # print(t4-t3, flush=True)
 
     def get_next_frame(self):
         """
