@@ -33,6 +33,7 @@ class Follower:
             max_run_count: int,
             threshold: float,
             state_duration_model: bool,
+            scale_factor: float,
 
             # GP model
             T: float,
@@ -63,6 +64,7 @@ class Follower:
         self.mode = mode
         self.max_run_count = max_run_count
         self.threshold = threshold
+        self.scale_factor = scale_factor
 
         self.frame_duration = self.frame_length/self.sample_rate
         self.frame_times = np.linspace(
@@ -105,6 +107,8 @@ class Follower:
             v=self.v,
             M=self.M,
             frame_length=self.frame_length,
+            sample_rate=self.sample_rate,
+            scale_factor=self.scale_factor,
         )
         viterbi_follower.follow()
 
