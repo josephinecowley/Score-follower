@@ -28,6 +28,7 @@ class Viterbi:
         window: int,
         threshold: int,
         state_duration_model: bool,
+        scale_factor: float,
 
         # GP model hyperparameters
         sigma_f: float,
@@ -38,6 +39,7 @@ class Viterbi:
         M: int,
         frame_length: int,
         frame_times: np.ndarray,
+        sample_rate: float,
 
     ):
 
@@ -51,6 +53,7 @@ class Viterbi:
         self.window = window
         self.threshold = threshold
         self.state_duration_model = state_duration_model
+        self.scale_factor = scale_factor
 
         self.cov_dict = cov_dict
         # TODO need to change the rest of the repo's naming convention so we dont muddle frames and samples
@@ -61,6 +64,7 @@ class Viterbi:
         self.v = v
         self.M = M
         self.frame_length = frame_length
+        self.sample_rate = sample_rate
 
         self.__log("Initialised successfully")
 
@@ -78,7 +82,8 @@ class Viterbi:
         step = self.window//3  # Threshold to trigger next chunk
 
         # Initialise state duration variables
-        conversion_rate = self.hop_length / self.time_to_next[0]
+        conversion_rate = self.sample_rate / self.hop_length
+
         counter = []  # This keeps track of state durations, d
         d = 1
 
@@ -91,14 +96,13 @@ class Viterbi:
         # Start at state 0
         lml = -helper.stable_nlml(self.time_samples, frame, M=self.M, normalised=False,
                                   f=self.score[0], T=self.T, v=self.v, cov_dict=self.cov_dict)
-        lml_scaled = np.sign(lml) * np.abs(lml)**0.05
+        lml_scaled = np.sign(lml) * np.abs(lml)**self.scale_factor
         gamma[0, 0] = lml_scaled
 
         advance_transition = np.log(0.5)
         self_transition = np.log(0.5)
 
         while True:
-            t3 = time.time()
 
             # Terminate if final state reached
             if max_s == len(self.score) - 1:
@@ -106,10 +110,7 @@ class Viterbi:
                 return
 
             # Get next audio frame and increment i
-            t1 = time.time()
             frame = self.get_next_frame()
-            t2 = time.time()
-            # print("Time to get next frame", t2 - t1, flush=True)
             i += 1
             if frame is None:
                 self.follower_output_queue.put(None)
@@ -131,13 +132,14 @@ class Viterbi:
                 advance_transition = np.sum([q**z * p for z in range(d)])
                 self_transition = np.log(1 - advance_transition)
                 advance_transition = np.log(advance_transition)
+                print("self ", self_transition, "advance ", advance_transition)
 
             # Iterate through states in window
             k0_index = chunk * step
             for k in range(k0_index, k0_index + self.window):
                 lml = -helper.stable_nlml(self.time_samples, frame, M=self.M, normalised=False,
                                           f=self.score[k], T=self.T, v=self.v, cov_dict=self.cov_dict)
-                lml_scaled = np.sign(lml) * np.abs(lml)**0.05
+                lml_scaled = np.sign(lml) * np.abs(lml)**self.scale_factor
 
                 same_state = lml_scaled + \
                     gamma[k, i-1] + self_transition
@@ -171,8 +173,6 @@ class Viterbi:
             # Update chunk
             if max_s >= k0_index + self.window - step:
                 chunk += 1
-            t4 = time.time()
-            # print(t4-t3, flush=True)
 
     def get_next_frame(self):
         """
