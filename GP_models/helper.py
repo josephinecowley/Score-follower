@@ -15,6 +15,7 @@ from tqdm import tqdm
 from . import inharmonicity
 # import inharmonicity
 
+
 # ----------------------------------------------------------
 # Helper plotting functions
 # ----------------------------------------------------------
@@ -383,7 +384,7 @@ def stable_nlml(time_samples, Y,  cov_dict=None, M=15, sigma_f=1/500000, f=[440]
         0.5 * len(time_samples) * np.log(2*np.pi)
 
 
-def relative_nlml(time_samples, Y,  M=15, sigma_f=1/500000, f=[440], sigma_n=1e-2, B=None, T=2, v=5, amplitude=None, normalised=False):
+def relative_nlml(time_samples, Y,  M=15, sigma_f=1/500000, f=[440], sigma_n=1e-2, B=None, T=2, v=5, amplitude=None, normalised=False, cov_dict=None):
     """
     This uses the stable implementation as written in stable_nlml. (see above)
     After exploring the effects of the separate terms, it was decided to 
@@ -393,10 +394,15 @@ def relative_nlml(time_samples, Y,  M=15, sigma_f=1/500000, f=[440], sigma_n=1e-
     as in this case, there should be no added complexity from more notes (Q) 
     """
     Y = Y.ravel()
+
     if normalised is True:
         Y = Y/sum(abs(Y))
-    K = SM_kernel(time_samples, time_samples, M=M, sigma_f=sigma_f, f=f, B=B, T=T, v=v, amplitude=amplitude) + \
-        sigma_n**2 * np.eye(len(time_samples))
+
+    if cov_dict and str(f) in cov_dict:
+        K = cov_dict[str(f)]  # Note this cov_dict already has noise added
+    else:
+        K = SM_kernel(time_samples, time_samples, M=M, sigma_f=sigma_f, f=f, B=B, T=T, v=v, amplitude=amplitude) + \
+            sigma_n**2 * np.eye(len(time_samples))
 
     L = cholesky(K)
 

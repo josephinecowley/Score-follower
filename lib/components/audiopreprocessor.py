@@ -9,6 +9,7 @@ import librosa  # type: ignore
 import time
 import numpy as np
 import sys
+# import time
 
 
 class Slicer:
@@ -43,11 +44,13 @@ class Slicer:
                 hop_length=self.hop_length,
                 mono=True,
                 fill_value=0,
+                duration=self.max_duration,
             )
 
             # before starting, sleep for frame_length
             self.__sleep(
-                self.frame_length, time.perf_counter() + 0.2)
+                self.hop_length, time.perf_counter())
+            # self.frame_length, time.perf_counter() + 0.2)
 
             for audio_frame in audio_stream:
                 pre_sleep_time = time.perf_counter()
