@@ -48,7 +48,7 @@ class Runner:
 
         self.__log(f"Begin: precalculate covariance matrices")
         # TODO at some point we may not want to have deleted repeats, since this causes state to stay the same...
-        cov_dict = self.__precalculate_cov(score[:100])
+        cov_dict = self.__precalculate_cov(score[:200])
         self.__log(f"End: precalculate covariance matrices")
 
         self.__log(f"Begin: initialise performance processor")
@@ -121,7 +121,8 @@ class Runner:
         note_info = process_midi_to_note_info(args.score_midi_path)
         self.__log("Finished getting note info from score midi")
 
-        dic = notes_to_chords(note_info, sustain=False, remove_repeats=False)
+        dic = notes_to_chords(
+            note_info, sustain=args.sustain, remove_repeats=False)
         self.__log("Finished getting chords from note info")
 
         score = dict_to_frequency_list(dic)
@@ -175,6 +176,7 @@ class Runner:
             mode=args.mode,
             max_run_count=args.max_run_count,
             threshold=args.threshold,
+            scale_factor=args.scale_factor,
 
         )
 
@@ -199,7 +201,7 @@ class Runner:
     def __init_player_if_required(self) -> Optional[mp.Process]:
         args = self.args
         if args.play_performance_audio and args.perf_wave_path:
-            player = Player(args.perf_wave_path)
+            player = Player(args.perf_wave_path, args.player_delay)
             player_proc = mp.Process(target=player.play)
             return player_proc
         return None
