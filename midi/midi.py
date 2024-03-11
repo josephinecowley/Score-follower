@@ -67,7 +67,8 @@ def notes_to_chords(notes: List[NoteInfo], sustain: bool = False, remove_repeats
                 # Else we just need to add the current note (don't want to duplicate active notes)
                 grouped_notes[note_start_time].append(note_frequency)
         else:
-            grouped_notes[note_start_time].append(note_frequency)
+            if note_frequency not in grouped_notes[note_start_time]:
+                grouped_notes[note_start_time].append(note_frequency)
     if remove_repeats:
         grouped_notes = remove_repeated_chords_from_dict(grouped_notes)
     return grouped_notes
