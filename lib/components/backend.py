@@ -68,7 +68,7 @@ class Backend:
             score_time = path[1]
 
             # if state > prev_state:  # TODO atm we are assuming no backtracking
-            if state > prev_state:
+            if True:  # state > prev_state:
                 # timestamp_s = self.__get_online_timestamp(state)
                 # Output time! TODO this is where you change the code to make it print to a port!!!s
                 # TODO make this back to eprint once done

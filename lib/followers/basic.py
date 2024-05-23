@@ -1,7 +1,7 @@
 from ..eprint import eprint
 import numpy as np
 from GP_models.helper import stable_nlml
-from sharedtypes import (
+from lib.sharedtypes import (
     AudioFrame,
     AudioFrameQueue,
     FollowerOutputQueue,
@@ -46,11 +46,12 @@ class Basic:
         self.T = T
         self.v = v
         self.M = M
+
         self.__log("Initialised successfully")
 
     def follow(self):
         """
-        Performs score following
+        Performs score following using a basic greedy algorithm
         Writes to self.follower_output_queue
         """
         # Check score
@@ -80,7 +81,7 @@ class Basic:
                 return
 
             # If amplitude is great enough, perform alignment
-            if np.sum(abs(frame)) > 30:  # TODO check this value then make it a default argument value
+            if np.sum(abs(frame)) > 20:  # TODO check this value then make it a default argument value
                 lml = []
                 num_lookahead = min(
                     len(self.score) - state_number, self.window) + self.back_track  # TODO check there isn't a plus one here
@@ -90,7 +91,7 @@ class Basic:
 
                 # TODO these need to be changed to be more realistic?
                 # priors = np.ones(num_lookahead)
-                priors = [0.98, 1, 0.98, 0.95]
+                priors = [1, 0.99]
                 lml = np.array(lml)
                 # Normalise to 1 so that we can feasibly compute the ml (e^lml)
                 normalised_lml = lml/np.sum(abs(lml))
@@ -104,7 +105,7 @@ class Basic:
             else:
                 self.__log("Amplitude too small, skipping audio frame")
 
-            self.follower_output_queue.put((state_number, audio_frame_number))
+            self.follower_output_queue.put((state_number, audio_frame_number,))
 
     def __log(self, msg: str):
         eprint(f"[{self.__class__.__name__}] {msg}")

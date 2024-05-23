@@ -12,9 +12,8 @@ from scipy.fft import fftfreq
 from scipy.signal.windows import hann, hamming
 import scipy.io.wavfile as wavf
 from tqdm import tqdm
-from . import inharmonicity
-# import inharmonicity
-
+# from . import inharmonicity
+import inharmonicity
 
 # ----------------------------------------------------------
 # Helper plotting functions
@@ -364,6 +363,9 @@ def stable_nlml(time_samples, Y,  cov_dict=None, M=15, sigma_f=1/500000, f=[440]
     Returns:
         Value of Negative Log Marginal Likelihood.
     """
+    # if len(Y[0]) != 1:
+    #     # We have a multi channel input— choose first channel (arbitrary)
+    #     Y = Y[:, 0]
     Y = Y.ravel()
     if normalised is True:
         Y = Y/sum(abs(Y))

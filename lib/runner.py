@@ -48,7 +48,7 @@ class Runner:
 
         self.__log(f"Begin: precalculate covariance matrices")
         # TODO at some point we may not want to have deleted repeats, since this causes state to stay the same...
-        cov_dict = self.__precalculate_cov(score[:200])
+        cov_dict = self.__precalculate_cov(score[:])
         self.__log(f"End: precalculate covariance matrices")
 
         self.__log(f"Begin: initialise performance processor")

@@ -77,7 +77,7 @@ class Viterbi:
         Performs score following using an on-line implementation of the Viterbi algorithm.
         Writes to self.follower_outpu_queue
         """
-
+        print(self.score)
         # Initialise on-line viterbi variables
         gamma = np.full((len(self.score), 1000), -np.inf, 'd')
         i = 0  # column number of gamma matrix
@@ -117,18 +117,28 @@ class Viterbi:
             print("my frame number! ", self.frame_no, flush=True)
 
             # Lengthen gamma matrix if needed
-            if i > gamma.shape[1]:
+            # if i >= gamma.shape[1]:
+            #     desired_len = int(i * 1.5)
+            #     columns_to_add = desired_len - gamma.shape[1]
+            #     gamma = np.append(gamma, np.full(
+            #         (len(self.score), columns_to_add), -np.inf, 'd'))
+
+            if i >= gamma.shape[1]:
                 desired_len = int(i * 1.5)
                 columns_to_add = desired_len - gamma.shape[1]
-                gamma = np.append(gamma, np.full(
-                    (len(self.score), columns_to_add), -np.inf, 'd'))
+
+                # Create a new array filled with -np.inf that matches the number of rows in gamma
+                new_columns = np.full(
+                    (gamma.shape[0], columns_to_add), -np.inf, 'd')
+
+                # Append the new columns to gamma on axis 1 (column-wise)
+                gamma = np.append(gamma, new_columns, axis=1)
 
             # Re-calculate transmission probabilities if taking into account state duration models
             if self.state_duration_model and conversion_rate:
                 expected = conversion_rate * \
                     self.time_to_next[self.max_s] / 1000
-                print("expected", expected)
-                p = 1 / (expected)  # probability
+                p = 1 / (expected + 1)
                 q = 1 - p
                 advance_transition = np.sum(
                     [q**z * p for z in range(1, self.d+1)])
@@ -182,12 +192,13 @@ class Viterbi:
 
     def get_next_frame(self,  increment_d: bool = True):
         """
-        Check the frame is above threshold value, if not continue to get frames. 
+        Check the frame is above threshold value, if not continue to get frames.
         If frame is None, return None to output queue and terminate.
         """
         frame = self.audio_frames_queue.get()
         self.frame_no += 1
         sum = np.sum(np.array(frame, dtype=np.int64)**2)
+        # sum = np.sum(np.array(frame)**2)  # for mode 2
         while sum < self.threshold:
             self.frame_no += 1
             if increment_d:
@@ -195,6 +206,7 @@ class Viterbi:
             self.__log(f"Amplitude too small, moving onto next audio frame")
             frame = self.audio_frames_queue.get()
             sum = np.sum(np.array(frame, dtype=np.int64)**2)
+            # sum = np.sum(np.array(frame)**2)
         return frame
 
     def __log(self, msg: str):

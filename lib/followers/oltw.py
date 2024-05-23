@@ -1,7 +1,7 @@
 from ..eprint import eprint
 import numpy as np
 from GP_models.helper import stable_nlml
-from sharedtypes import (
+from lib.sharedtypes import (
     AudioFrame,
     AudioFrameQueue,
     FollowerOutputQueue,
@@ -88,7 +88,6 @@ class Oltw:
         self.follower_output_queue.put((i_prime, j_prime))
 
         # Get the first audio frame and save it to a matrix
-
         p_i = self.audio_frames_queue.get()
         while np.sum(np.abs(p_i)) < 75:
             print(f"Amplitude too small, moving onto next audio frame")
@@ -117,7 +116,7 @@ class Oltw:
 
             # Now extend the raw lml cost matrix R
 
-            # If need to incremenet i
+            # If we need to increment i
             if Direction.I in current:
                 # Increment the audio frame
                 p_i: np.ndarray = self.audio_frames_queue.get()
@@ -142,7 +141,7 @@ class Oltw:
                                               sigma_f=self.sigma_f, f=s_J, sigma_n=self.sigma_n, T=self.T, v=self.v, normalised=False)
                     self.__save_lml_to_R(i, J, lml)
 
-            # If need to increment j
+            # If we need to increment j
             if Direction.J in current:
                 # Increment j
                 j += 1
@@ -154,7 +153,7 @@ class Oltw:
                     lml = -helper.stable_nlml(self.frame_times, p_I, cov_dict=self.cov_dict, M=self.M,
                                               sigma_f=self.sigma_f, f=s_j, sigma_n=self.sigma_n, T=self.T, v=self.v, normalised=False)
                     self.__save_lml_to_R(I, j, lml)
-
+            print(self.R, flush=True)
             # Update run_count
             if current == previous and previous != DIR_IJ:
                 self.run_count += 1
@@ -164,9 +163,9 @@ class Oltw:
             previous = current
             # Update the path values (i_prime and j_prime) and write to the output queue
             i_prime, j_prime = self.__get_path_values(i, j)
-
+            print(f"i_prime = {i_prime} j_prime = {j_prime}")
             # Finally, put path values on the follower output queue
-            self.follower_output_queue.put((j_prime, i_prime))
+            # self.follower_output_queue.put((j_prime, i_prime))
 
     def __save_p_i(self, i: int, audio_frame: np.ndarray):
         """ Save audio frame to 2d array for later reference"""
@@ -217,7 +216,9 @@ class Oltw:
         return self.R[i][j]
 
     def __get_next_drn(self, i: int, j: int, i_prime: int, j_prime: int, previous: Set[Direction]) -> Set[Direction]:
-        """ Return the next direction to commence."""
+        """ 
+        Return the next direction to commence.
+        """
 
         # If we are smaller than the window, we should keep increaseing in both directions
         if i < self.window:
@@ -237,7 +238,9 @@ class Oltw:
         return DIR_IJ
 
     def __get_path_values(self, i: int, j: int) -> Tuple[int, int]:
-        """Return a tuple of the path values (i,j)"""
+        """
+        Return a tuple of the path values (i,j)
+        """
 
         i_prime, j_prime = (i, j)
         max_R = -np.inf

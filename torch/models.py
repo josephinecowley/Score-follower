@@ -15,7 +15,7 @@ class SpectralMixtureGP(gpytorch.models.ExactGP):
         super(SpectralMixtureGP, self).__init__(x_train, y_train, likelihood)
         self.mean = gpytorch.means.ConstantMean()  # Construct the mean function
         self.cov = gpytorch.kernels.SpectralMixtureKernel(
-            num_mixtures=2)  # Constuct the kernel function
+            num_mixtures=10, mixture_means_prior=torch.tensor([1/440]))  # Constuct the kernel function
         # Initialise the hyperparameters from the data
         self.cov.initialize_from_data(x_train, y_train)
 

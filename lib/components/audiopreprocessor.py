@@ -9,6 +9,10 @@ import librosa  # type: ignore
 import time
 import numpy as np
 import sys
+import scipy.io.wavfile as wav
+from GP_models import helper
+from matplotlib import pyplot as plt
+
 # import time
 
 
@@ -34,32 +38,52 @@ class Slicer:
         self.__log("Initialised successfully")
 
     def start(self):
-        if self.wave_path:  # If htere is a wave path, we will not do live return
-            self.__log("Starting using performance recording...")
-            audio_stream = librosa.stream(
-                path=self.wave_path,
-                block_length=1,
-                # TODO hop length parameter didn't seem to be working so this is a current fix
-                frame_length=self.hop_length,
-                hop_length=self.hop_length,
-                mono=True,
-                fill_value=0,
-                duration=self.max_duration,
-            )
+        if self.wave_path:
 
-            # before starting, sleep for frame_length
+            self.__log("Starting using performance recording...")
+            sample_rate, data = wav.read(self.wave_path)
+            sample_indices = np.arange(0, len(data), self.hop_length)
+            audio_stream = [data[index:index+self.frame_length]
+                            for index in sample_indices]
+
             self.__sleep(
                 self.hop_length, time.perf_counter())
-            # self.frame_length, time.perf_counter() + 0.2)
-
             for audio_frame in audio_stream:
                 pre_sleep_time = time.perf_counter()
-                self.audio_frames_queue.put(audio_frame[:self.frame_length])
+                self.audio_frames_queue.put(audio_frame)
                 # sleep for hop length
                 self.__sleep(self.hop_length, pre_sleep_time)
 
             self.audio_frames_queue.put(None)  # end
             self.__log("Finished")
+
+        # if self.wave_path:  # If htere is a wave path, we will not do live return
+        # self.__log("Starting using performance recording...")
+        # audio_stream = librosa.stream(
+        #     path=self.wave_path,
+        #     block_length=1,
+        #     # TODO hop length parameter didn't seem to be working so this is a current fix
+        #     frame_length=self.hop_length,
+        #     hop_length=self.hop_length,
+        #     mono=True,
+        #     fill_value=0,
+        #     duration=self.max_duration,
+        # )
+
+        # # before starting, sleep for frame_length
+        # self.__sleep(
+        #     self.hop_length, time.perf_counter())
+        # # self.frame_length, time.perf_counter() + 0.2)
+
+        # for audio_frame in audio_stream:
+        #     pre_sleep_time = time.perf_counter()
+        #     audio_frame = (audio_frame * 32767).astype(np.int16)
+        #     self.audio_frames_queue.put(audio_frame[:self.frame_length])
+        #     # sleep for hop length
+        #     self.__sleep(self.hop_length, pre_sleep_time)
+
+        # self.audio_frames_queue.put(None)  # end
+        # self.__log("Finished")
 
         else:
             # If live listening

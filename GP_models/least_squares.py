@@ -27,7 +27,7 @@ def psd(audio_samples: np.ndarray, sample_rate: int) -> np.ndarray:
     return psd[:(len(audio_samples)//8)], frequency_axis[:(len(audio_samples)//8)]
 
 
-def phi_row(frequency_inputs, fundamental, M=12, std_dev=10, v=None, T=None, B=None, missing_fund=0):
+def phi_row(frequency_inputs, fundamental, M=12, std_dev=10, v=None, T=None, B=None, missing_fund: int = 0):
     positive = np.zeros(len(frequency_inputs))
     if v is None:
         v = 2.37
@@ -47,21 +47,23 @@ def phi_row(frequency_inputs, fundamental, M=12, std_dev=10, v=None, T=None, B=N
     return 1.0 / (np.sqrt(2.0 * np.pi) * std_dev) * positive
 
 
-def phi_matrix(frequency_axis, f, M=10, sigma_f=10, T=None, v=None, B=None):
+def phi_matrix(frequency_axis, f, M=10, sigma_f=10, T=None, v=None, B=None, missing_fund: int = 0):
     phi = np.zeros((len(f), len(frequency_axis)))
     for i, fundamental_frequency in enumerate(f):
         phi[i] = phi_row(
-            frequency_axis, fundamental_frequency, M=M, std_dev=sigma_f, T=T, v=v, B=B)
+            frequency_axis, fundamental_frequency, M=M, std_dev=sigma_f, T=T, v=v, B=B, missing_fund=missing_fund)
     return phi.T
 
 
-def opt_amplitude(data, sample_rate=44100, f=[440], M=10, sigma_f=10, T=None, v=None, B=None, show=False):
+def opt_amplitude(data, sample_rate=44100, f=[440], M=10, sigma_f=10, T=None, v=None, B=None, show=False, missing_fund: int = 0):
     """
     Returns a flattened array a of amplitudes corresponding to each note source
     """
+    print(data)
     psd_data, frequency_axis = psd(data, sample_rate)
     psd_data = psd_data.reshape((-1, 1))
-    phi = phi_matrix(frequency_axis, f=f, M=M, sigma_f=sigma_f, v=v, T=T, B=B)
+    phi = phi_matrix(frequency_axis, f=f, M=M, sigma_f=sigma_f,
+                     v=v, T=T, B=B, missing_fund=missing_fund)
     inverse_factor = np.linalg.inv(phi.T @ phi)
     a = inverse_factor @ phi.T @ psd_data
     prediction = phi @ a

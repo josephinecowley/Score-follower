@@ -6,7 +6,7 @@ from itertools import chain
 import numpy as np
 import matplotlib.pyplot as plt
 from collections import defaultdict
-# import GP_models.helper
+import GP_models.helper
 
 
 def process_midi_to_note_info(midi_path: str) -> List[NoteInfo]:
