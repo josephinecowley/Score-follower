@@ -8,8 +8,7 @@ REPO_ROOT = os.path.dirname(os.path.dirname(__file__))
 
 # GP Hyperparameters
 DEFAULT_M = 9
-DEFAULT_SIGMA_F = 2e-6  # 1/500000  # 2e-6  # 1/500000
+DEFAULT_SIGMA_F = 0.005
 DEFAULT_SIGMA_N = 10
-
 DEFAULT_V = 2.37
 DEFAULT_T = 0.465

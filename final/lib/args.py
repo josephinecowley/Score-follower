@@ -11,8 +11,8 @@ from lib.sharedtypes import Mode
 class Arguments(Tap):
 
     # Score follower
-    perf_wave_path: Optional[str] = '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/wav_files/piano/bach_tetris.wav'
-    score_midi_path: Optional[str] = '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/midi_files/piano/bach_tetris.midi'
+    perf_wave_path: Optional[str] = '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/final/music-data/wav-files/bach_hymn.wav'
+    score_midi_path: Optional[str] = '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/final/music-data/midi-files/bach_hymn.midi'
     sample_rate: int = const.DEFAULT_SAMPLE_RATE
     frame_length: int = const.DEFAULT_FRAME_LENGTH
     hop_length: int = const.DEFAULT_HOP_LENGTH

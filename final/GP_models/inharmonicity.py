@@ -1,3 +1,5 @@
+""" Dictionary of inharmonicity constants. These must be changed for each piano."""
+
 B = {
     27: 0.00007,
     29: 0.000039,
