@@ -7,8 +7,8 @@ from lib.sharedtypes import (
 )
 from ..eprint import eprint
 import numpy as np
-from lib.followers.basic import Basic
-from lib.followers.oltw import Oltw
+# from lib.followers.basic import Basic
+# from lib.followers.oltw import Oltw
 from lib.followers.viterbi import Viterbi
 
 

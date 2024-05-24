@@ -18,7 +18,7 @@ class Arguments(Tap):
     # '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/wav_files/piano/bach_prelude.wav'
     # perf_wave_path: Optional[str] = None
     # '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/wav_files/piano/cpebach_solfeggietto.wav'
-    perf_wave_path: Optional[str] = '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/wav_files/flute/debussy_syrinx.wav'
+    perf_wave_path: Optional[str] = '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/wav_files/piano/bach_tetris.wav'
 
     # Path to score MIDI.
     # '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/midi_files/Bach_1.midi'

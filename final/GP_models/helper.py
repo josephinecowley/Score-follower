@@ -12,8 +12,8 @@ from scipy.fft import fftfreq
 from scipy.signal.windows import hann, hamming
 import scipy.io.wavfile as wavf
 from tqdm import tqdm
-# from . import inharmonicity
-import inharmonicity
+from . import inharmonicity
+# import inharmonicity
 
 # ----------------------------------------------------------
 # Helper plotting functions
