@@ -1,23 +1,10 @@
 import numpy as np
-import scipy.io.wavfile as wav
 import matplotlib.pyplot as plt
 from scipy.fft import fft
 from scipy.fft import fftfreq
-from librosa import note_to_hz as hz
-from scipy.signal.windows import hann, hamming
+from scipy.signal.windows import hann
 import scipy.io.wavfile as wavf
 import inharmonicity
-
-
-titles = ['piano_C4_262', 'piano_D4_294',
-          'piano_E4_330', 'piano_f4_349', 'piano_G4_392', 'piano_A4_440', 'piano_B4_494', 'piano_C5_523']
-frequencies = [262, 294, 330, 349, 392, 440, 494, 523]
-# Single note
-wav_file = '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/wav_files/G_diminished.wav'
-sample_rate, data = wav.read(wav_file)
-data = data[3000:6000]
-audio_duration = len(data)/sample_rate
-time_samples = np.linspace(0, audio_duration, len(data))
 
 
 def psd(audio_samples: np.ndarray, sample_rate: int) -> np.ndarray:
@@ -59,7 +46,6 @@ def opt_amplitude(data, sample_rate=44100, f=[440], M=10, sigma_f=10, T=None, v=
     """
     Returns a flattened array a of amplitudes corresponding to each note source
     """
-    print(data)
     psd_data, frequency_axis = psd(data, sample_rate)
     psd_data = psd_data.reshape((-1, 1))
     phi = phi_matrix(frequency_axis, f=f, M=M, sigma_f=sigma_f,
@@ -75,10 +61,3 @@ def opt_amplitude(data, sample_rate=44100, f=[440], M=10, sigma_f=10, T=None, v=
                  label="Kernel in frequency domain")
         plt.legend()
     return a.flatten(),  prediction, psd_data, frequency_axis, sq_res[0, 0]
-
-
-# frequencies = hz(['G3', 'A#3', 'C#4', 'E4'])
-
-# a = opt_amplitude(data, f=frequencies, M=6, T=2, show=True, sigma_f=2)[0]
-# print(a)
-# plt.show()
