@@ -22,7 +22,7 @@ class Arguments(Tap):
 
     # Path to score MIDI.
     # '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/midi_files/Bach_1.midi'
-    score_midi_path: Optional[str] = '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/midi_files/flute/debussy_syrinx.midi'
+    score_midi_path: Optional[str] = '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/midi_files/piano/bach_tetris.midi'
     # Sample rate to synthesise score and load performance wave file.
     sample_rate: int = const.DEFAULT_SAMPLE_RATE
     frame_length: int = const.DEFAULT_FRAME_LENGTH
@@ -42,12 +42,12 @@ class Arguments(Tap):
     mode: Mode = "viterbi"  # TODO to implement also "oltw" and "viterbi"
     scale_factor: float = 0.25
     # Whether to take into account state duration model transitions
-    state_duration_model: bool = True
+    state_duration_model: bool = False
     # Either `stderr` or `udp:<HOSTNAME>:<PORT>` for UDP sockets + stderr
     backend_output: str = "udp:127.0.0.1:4000"
     max_run_count: int = 100
-    threshold: float = 80000000  # Mode 1: 80000000 Mode 2: 1
-    sustain: bool = True
+    threshold: float = 800000000  # Mode 1: 800000000 Mode 2: 1
+    sustain: bool = False
 
     # Miscellaneous
     # When streaming performance, reduce sleep time between streaming slices as sleeping is not entirely precise.

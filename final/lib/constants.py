@@ -7,7 +7,7 @@ DEFAULT_HOP_LENGTH = 6000
 REPO_ROOT = os.path.dirname(os.path.dirname(__file__))
 
 # GP Hyperparameters
-DEFAULT_M = 8
+DEFAULT_M = 6
 DEFAULT_SIGMA_F = 2e-6  # 1/500000  # 2e-6  # 1/500000
 DEFAULT_SIGMA_N = 10
 

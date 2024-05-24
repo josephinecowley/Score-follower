@@ -5,7 +5,7 @@ from .components.player import Player
 from .components.follower import Follower
 from .components.backend import Backend
 from .eprint import eprint
-from midi.midi import process_midi_to_note_info, notes_to_chords, dict_to_frequency_list
+from .midi import process_midi_to_note_info, notes_to_chords, dict_to_frequency_list
 from GP_models.helper import SM_kernel
 from lib.sharedtypes import (
     List,
