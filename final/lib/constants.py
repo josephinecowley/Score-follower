@@ -2,12 +2,12 @@ import os
 
 DEFAULT_SAMPLE_RATE = 44100
 DEFAULT_FRAME_LENGTH = 800
-DEFAULT_HOP_LENGTH = 6000
+DEFAULT_HOP_LENGTH = 5000
 
 REPO_ROOT = os.path.dirname(os.path.dirname(__file__))
 
 # GP Hyperparameters
-DEFAULT_M = 6
+DEFAULT_M = 9
 DEFAULT_SIGMA_F = 2e-6  # 1/500000  # 2e-6  # 1/500000
 DEFAULT_SIGMA_N = 10
 

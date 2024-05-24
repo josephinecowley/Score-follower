@@ -8,24 +8,22 @@ from .eprint import eprint
 from .midi import process_midi_to_note_info, notes_to_chords, dict_to_frequency_list
 from GP_models.helper import SM_kernel
 from lib.sharedtypes import (
-    List,
-    AudioFrame,
     AudioFrameQueue,
     FollowerOutputQueue,
-    MultiprocessingConnection,
-    NoteInfo,
+    MultiprocessingConnection
 )
 import multiprocessing as mp
 from .components.audiopreprocessor import AudioPreprocessor
 import time
-from typing import Optional, Tuple, List
+from typing import Optional
 
 
 class Runner:
     def __init__(self, args: Arguments):
         """
-        Precondition: assuming args.sanitise() was called.
+        Assuming args.sanitise() was called.
         """
+
         self.args = args
         self.frame_duration = self.args.frame_length/self.args.sample_rate
         self.frame_times = np.linspace(
@@ -47,7 +45,6 @@ class Runner:
         self.__log(f"End: preprocess score")
 
         self.__log(f"Begin: precalculate covariance matrices")
-        # TODO at some point we may not want to have deleted repeats, since this causes state to stay the same...
         cov_dict = self.__precalculate_cov(score[:])
         self.__log(f"End: precalculate covariance matrices")
 
@@ -117,6 +114,7 @@ class Runner:
         """
         Return list of states
         """
+
         args = self.args
         note_info = process_midi_to_note_info(args.score_midi_path)
         self.__log("Finished getting note info from score midi")
@@ -134,6 +132,7 @@ class Runner:
         """
         Return dictionary of covariance functions (wth noise!) to speed up score following
         """
+
         args = self.args
         cov_dict = {}
 

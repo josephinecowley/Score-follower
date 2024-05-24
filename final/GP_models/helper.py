@@ -43,15 +43,14 @@ def plot_fft(data, sample_rate=44100, power_spectrum=False, title='Spectrum', co
     """
     Visualise audio frequency data using DFT.
 
-    Args: TODO
-        power_spectrum: Make this tru eif plotting a kernel function as the fft will be the power spectrum.
+    Args: 
+        power_spectrum: Make this true if plotting a kernel function as the fft will be the power spectrum.
     Returns:
-        Returns positive fft data and plots a grah of positive values of the audio spectrum. 
+        Returns positive fft data and plots a graph of positive values of the audio spectrum. 
     """
     w = hann(len(data))
     if power_spectrum is False:
         fft_data = np.abs(fft(data*w, norm="ortho"))
-
     else:
         fft_data = np.abs(fft(data*w, norm="ortho"))**2
     frequency_axis = fftfreq(len(data), d=1.0/sample_rate)
@@ -261,26 +260,34 @@ def impimproved_SM_kernel(X1, X2, M=56, f=[440, 35], sigma_f=1/500000, B=None, T
     return np.exp(-2 * np.pi**2 * sigma_f**2 * sqdist) * matrix
 
 
-def SM_kernel(X1, X2, M: int = 12, f: list = [440], sigma_f: float = 1/500000, B=None, T=None, v=None, amplitude=None):
+def SM_kernel(X1, X2, f: list = [440], M: int = 9, sigma_f: float = 0.005, w: list = None, T: float = 0.465, v: float = 2.37, B: dict = None):
     """
-    SM kernel.
+    SM kernel. Takes two arrays and returns a matrix with elements of the SM covariance function where K_{i,j} = k(x_i,x_j).
 
     Args:
-        X1: Array of m points (m x 1).
-        X2: Array of n points (n x 1).
+        X1: Array of m points.
+        X2: Array of n points.
+
+        f: List of frequencies GP hyperparameter. 
+        M: Integer for number of harmonics (Including the fundamental frequency).
+        sigma_f: Float for inverse length scale GP hyperparameter.
+        w: List of relative weights GP hyperparameter.
+        T: Float for parameter of spectral envelope weights (E_m) GP hyperparameter.
+        v: Float for parameter of spectral envelope weights (E_m) GP hyperparameter.
+        B: Dictionary of inharmonicity constants GP hyperparameter.
 
     Returns:
-        (m x n) matrix.
-    TODO add check to see that vector elements are 1D
-    TODO add checks to make sure all parameters are of the correct form
+        Covariance matrix (K).
     """
     M = int(M)
+
     if v is None:
         v = 2.37
     if T is None:
         T = 0.465
-    if amplitude is None:
-        amplitude = np.ones(len(f))/np.sum(len(f))
+    if w is None:
+        w = np.ones(len(f))/np.sum(len(f))
+
     X1 = X1.reshape(-1, 1)
     X2 = X2.reshape(-1, 1)
 
@@ -290,7 +297,6 @@ def SM_kernel(X1, X2, M: int = 12, f: list = [440], sigma_f: float = 1/500000, B
     cosine_series = np.zeros((X1.shape[0], X2.shape[0]))
 
     for i, fundamental_frequency in enumerate(f):
-        # Add inharmonicity constant, that depends on each fundamental frequency
         if B is None:
             closest_key = min(inharmonicity.B.keys(), key=lambda key: abs(
                 key - fundamental_frequency))
@@ -301,7 +307,7 @@ def SM_kernel(X1, X2, M: int = 12, f: list = [440], sigma_f: float = 1/500000, B
                 (m+1) * fundamental_frequency
             A = k_m * X1
             C = k_m * X2
-            cosine_series += amplitude[i] / (1 + (T*(m+1))**v) * (
+            cosine_series += w[i] / (1 + (T*(m+1))**v) * (
                 np.cos(A) * np.cos(C).T + np.sin(A) * np.sin(C).T)
 
     return np.exp(-2 * np.pi**2 * sigma_f**2 * sqdist) * cosine_series
@@ -341,49 +347,55 @@ def nlml(time_samples, Y, cov_s=None, M=10, sigma_f=1/500000, f=[400],  B=None, 
     """
     Y = Y.ravel()
     if cov_s is None:
-        K = SM_kernel(time_samples, time_samples, M=M, sigma_f=sigma_f, f=f, B=B, T=T, v=v, amplitude=amplitude) + \
+        K = SM_kernel(time_samples, time_samples, M=M, sigma_f=sigma_f, f=f, B=B, T=T, v=v, w=amplitude) + \
             sigma_n**2 * np.eye(len(time_samples))
     else:
         K = cov_s + sigma_n**2 * np.eye(len(time_samples))
     return 0.5 * Y.dot(inv(K).dot(Y)) + 0.5 * np.log(det(K)) + 0.5 * len(time_samples) * np.log(2*np.pi)
 
 
-def stable_nlml(time_samples, Y,  cov_dict=None, M=15, sigma_f=1/500000, f=[440], sigma_n=1e-2, B=None, T=0.465, v=2.37, amplitude=None, normalised=False):
+def stable_nlml(x, y, f: list = [440], M: int = 9, sigma_f: float = 0.005, w: list = None, T: float = 0.465, v: float = 2.37, B: dict = None, sigma_n: float = 1e-2, cov_dict: dict = None):
     """
-    Return Negative Log Marginal Likelihood via stable method.
+    Return negative log marginal likelihood via stable efficient method (using Cholesky factorisation).
     Assumes zero mean.
 
-    Numerically more stable implementation of nlml as described in http://www.gaussianprocess.org/gpml/chapters/RW2.pdf, 
-    Section 2.2, Algorithm 2.1.
-
     Args:
-        time_samples: Vector of input time samples.
-        Y: Vector of corresponding time value outputs, to be measured against the GP model.
+        y: Array of input audioframe values.
+        x: Array of input audio sample times.
+
+        f: List of frequencies GP hyperparameter. 
+        M: Integer for number of harmonics (Including the fundamental frequency).
+        sigma_f: Float for inverse length scale GP hyperparameter.
+        w: List of relative weights GP hyperparameter.
+        T: Float for parameter of spectral envelope weights (E_m) GP hyperparameter.
+        v: Float for parameter of spectral envelope weights (E_m) GP hyperparameter.
+        B: Dictionary of inharmonicity constants GP hyperparameter.
+        sigma_n: Float for additive Gaussian noise GP hyperparameter.
+
+        cov_dict: Dictionary of pre-calculated covariance matrices for states in a piece.
 
     Returns:
-        Value of Negative Log Marginal Likelihood.
+        Value of negative log marginal likelihood.
     """
     # if len(Y[0]) != 1:
     #     # We have a multi channel input— choose first channel (arbitrary)
     #     Y = Y[:, 0]
-    Y = Y.ravel()
-    if normalised is True:
-        Y = Y/sum(abs(Y))
+    y = y.ravel()
 
     if cov_dict is not None and str(f) in cov_dict:
         K = cov_dict[str(f)]  # Note this cov_dict already has noise added
     else:
-        K = SM_kernel(time_samples, time_samples, M=M, sigma_f=sigma_f, f=f, B=B, T=T, v=v, amplitude=amplitude) + \
-            sigma_n**2 * np.eye(len(time_samples))
+        K = SM_kernel(x, x, M=M, sigma_f=sigma_f, f=f, B=B, T=T, v=v, w=w) + \
+            sigma_n**2 * np.eye(len(x))
 
     L = cholesky(K)
 
-    S1 = solve_triangular(L, Y, lower=True)
+    S1 = solve_triangular(L, y, lower=True)
     S2 = solve_triangular(L.T, S1, lower=False)
 
     return np.sum(np.log(np.diagonal(L))) + \
-        0.5 * Y.dot(S2) + \
-        0.5 * len(time_samples) * np.log(2*np.pi)
+        0.5 * y.dot(S2) + \
+        0.5 * len(x) * np.log(2*np.pi)
 
 
 def relative_nlml(time_samples, Y,  M=15, sigma_f=1/500000, f=[440], sigma_n=1e-2, B=None, T=2, v=5, amplitude=None, normalised=False, cov_dict=None):
@@ -403,7 +415,7 @@ def relative_nlml(time_samples, Y,  M=15, sigma_f=1/500000, f=[440], sigma_n=1e-
     if cov_dict and str(f) in cov_dict:
         K = cov_dict[str(f)]  # Note this cov_dict already has noise added
     else:
-        K = SM_kernel(time_samples, time_samples, M=M, sigma_f=sigma_f, f=f, B=B, T=T, v=v, amplitude=amplitude) + \
+        K = SM_kernel(time_samples, time_samples, M=M, sigma_f=sigma_f, f=f, B=B, T=T, v=v, w=amplitude) + \
             sigma_n**2 * np.eye(len(time_samples))
 
     L = cholesky(K)
@@ -435,12 +447,12 @@ def posterior(T_test, T_train, Y_train, M=14, sigma_f=1/500000, sigma_y=0.0001, 
     """
     T_train = T_train.reshape(-1, 1)
     T_test = T_test.reshape(-1, 1)
-    K = SM_kernel(T_train, T_train, M=M, sigma_f=sigma_f, f=f, B=B, T=T, v=v, amplitude=amplitude) + \
+    K = SM_kernel(T_train, T_train, M=M, sigma_f=sigma_f, f=f, B=B, T=T, v=v, w=amplitude) + \
         sigma_y**2 * np.eye(len(T_train))
     K_s = SM_kernel(
-        T_train, T_test, M=M, sigma_f=sigma_f, f=f, B=B, T=T, v=v, amplitude=amplitude)
+        T_train, T_test, M=M, sigma_f=sigma_f, f=f, B=B, T=T, v=v, w=amplitude)
     K_ss = SM_kernel(
-        T_test, T_test, M=M, sigma_f=sigma_f, f=f, B=B, T=T, v=v, amplitude=amplitude) + 1e-8 * np.eye(len(T_test))
+        T_test, T_test, M=M, sigma_f=sigma_f, f=f, B=B, T=T, v=v, w=amplitude) + 1e-8 * np.eye(len(T_test))
     K_inv = inv(K)
 
     # Calculate posterior mean function
@@ -497,9 +509,9 @@ def golden_section_f(x1, x2, X_train, Y_train, M=8, sigma=1e-2, tol=1, integer_s
 def golden_section_B(B1, B2, X_train, Y_train, f=[440], M=12, sigma_f=1/500000, tol=0.00008, amplitude=0.000205):
     # Initial points
     f1 = stable_nlml(X_train, Y_train, M=M, sigma_f=sigma_f,
-                     f=f, B=B1, amplitude=amplitude)
+                     f=f, B=B1, w=amplitude)
     f2 = stable_nlml(X_train, Y_train, M=M, sigma_f=sigma_f,
-                     f=f, B=B2, amplitude=amplitude)
+                     f=f, B=B2, w=amplitude)
 
     # Set up golden ratios
     r = (np.sqrt(5)-1)/2.0
@@ -507,14 +519,14 @@ def golden_section_B(B1, B2, X_train, Y_train, f=[440], M=12, sigma_f=1/500000, 
     # Third point
     B3 = B1 * (1-r) + B2 * r
     f3 = stable_nlml(X_train, Y_train, M=M, sigma_f=sigma_f,
-                     f=f, B=B3, amplitude=amplitude)
+                     f=f, B=B3, w=amplitude)
 
     # Loop until convergence
     while abs(B1-B2) > tol:
 
         B4 = B1 * r + B2 * (1-r)
         f4 = stable_nlml(
-            X_train, Y_train, M=M, sigma_f=sigma_f, f=f, B=B4, amplitude=amplitude)
+            X_train, Y_train, M=M, sigma_f=sigma_f, f=f, B=B4, w=amplitude)
         print(f4, '/n', B3)
         if f4 < f3:
             B2 = B3
@@ -559,7 +571,7 @@ def nlml_fn(X_train, Y_train, f=[440], sigma_f=1/500000,  M=12, naive=False):
         # Naive implementation of Eq. (11). Works well for the examples
         # in this article but is numerically less stable compared to
         # the implementation in nll_stable below.
-        K = SM_kernel(X_train, X_train, M=M, f=f, sigma_f=theta[0],  amplitude=theta[1]) + \
+        K = SM_kernel(X_train, X_train, M=M, f=f, sigma_f=theta[0],  w=theta[1]) + \
             0.0005**2 * np.eye(len(X_train))
         return 0.5 * np.log(det(K)) + \
             0.5 * Y_train.dot(inv(K).dot(Y_train)) + \
@@ -570,7 +582,7 @@ def nlml_fn(X_train, Y_train, f=[440], sigma_f=1/500000,  M=12, naive=False):
         # in http://www.gaussianprocess.org/gpml/chapters/RW2.pdf, Section
         # 2.2, Algorithm 2.1.
 
-        K = SM_kernel(X_train, X_train, M=M, f=f, sigma_f=theta[0],  amplitude=theta[1]) + \
+        K = SM_kernel(X_train, X_train, M=M, f=f, sigma_f=theta[0],  w=theta[1]) + \
             0.0005**2 * np.eye(len(X_train))
         L = cholesky(K)
 

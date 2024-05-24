@@ -10,24 +10,13 @@ from lib.sharedtypes import Mode
 
 class Arguments(Tap):
 
-    # Path to performance WAV file.
-    # '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/wav_files/fugue.wav'
-    # '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/wav_files/whole_bach_prelude.wav'
-    # '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/wav_files/Bach_3.wav'
-
-    # '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/wav_files/piano/bach_prelude.wav'
-    # perf_wave_path: Optional[str] = None
-    # '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/wav_files/piano/cpebach_solfeggietto.wav'
+    # Score follower
     perf_wave_path: Optional[str] = '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/wav_files/piano/bach_tetris.wav'
-
-    # Path to score MIDI.
-    # '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/midi_files/Bach_1.midi'
     score_midi_path: Optional[str] = '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/midi_files/piano/bach_tetris.midi'
-    # Sample rate to synthesise score and load performance wave file.
     sample_rate: int = const.DEFAULT_SAMPLE_RATE
     frame_length: int = const.DEFAULT_FRAME_LENGTH
     hop_length: int = const.DEFAULT_HOP_LENGTH
-    max_duration: Optional[float] = 300
+    max_duration: Optional[float] = 300  # Time in seconds before timing out
 
     # GP hyperparameters
     M: int = const.DEFAULT_M
@@ -39,9 +28,9 @@ class Arguments(Tap):
     # Follower parameters
     window: int = 6
     back_track: int = 0
-    mode: Mode = "viterbi"  # TODO to implement also "oltw" and "viterbi"
+    mode: Mode = "viterbi"  # Legacy: could add "oltw" and "viterbi" as well
+    # Exponent to make likelihoods and tranition probabilities comparable
     scale_factor: float = 0.25
-    # Whether to take into account state duration model transitions
     state_duration_model: bool = False
     # Either `stderr` or `udp:<HOSTNAME>:<PORT>` for UDP sockets + stderr
     backend_output: str = "udp:127.0.0.1:4000"
@@ -49,12 +38,8 @@ class Arguments(Tap):
     threshold: float = 800000000  # Mode 1: 800000000 Mode 2: 1
     sustain: bool = False
 
-    # Miscellaneous
-    # When streaming performance, reduce sleep time between streaming slices as sleeping is not entirely precise.
     sleep_compensation: float = 0.0025
-    # 1.43 without recording--  the more laggy the computer is being, use a larger value
-    player_delay: float = 2.05
-    # Whether to play the performance audio file when started. Requires `simulate_performance` to be set to True.
+    player_delay: float = 2.05  # The more laggy the computer is, use a larger this value
     play_performance_audio: bool = True
 
     def __log_and_exit(self, msg: str):
@@ -68,16 +53,13 @@ class Arguments(Tap):
                 self.__log_and_exit(
                     f"Performance wave file ({self.perf_wave_path}) does not exist"
                 )
-        #     else:
-        #         self.score_midi_path = path.abspath(self.perf_wave_path)
 
         if self.score_midi_path:
             if not path.isfile(self.score_midi_path):
                 self.__log_and_exit(
                     f"Score MIDI file ({self.score_midi_path}) does not exist"
                 )
-        #     else:
-        #         self.score_midi_path = path.abspath(self.score_midi_path)
+
         if self.sample_rate < 0:
             self.__log_and_exit(f"sample_length must be positive")
 

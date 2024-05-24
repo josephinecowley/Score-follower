@@ -2,14 +2,9 @@ from ..eprint import eprint
 import numpy as np
 from GP_models.helper import stable_nlml
 from lib.sharedtypes import (
-    AudioFrame,
     AudioFrameQueue,
     FollowerOutputQueue,
 )
-from enum import Enum
-from typing import Set, Tuple
-from GP_models import helper
-import time
 
 
 class Viterbi:
@@ -56,7 +51,6 @@ class Viterbi:
         self.scale_factor = scale_factor
 
         self.cov_dict = cov_dict
-        # TODO need to change the rest of the repo's naming convention so we dont muddle frames and samples
         self.time_samples = frame_times
         self.sigma_f = sigma_f
         self.sigma_n = sigma_n
@@ -77,24 +71,20 @@ class Viterbi:
         Performs score following using an on-line implementation of the Viterbi algorithm.
         Writes to self.follower_outpu_queue
         """
-        print(self.score)
-        # Initialise on-line viterbi variables
         gamma = np.full((len(self.score), 1000), -np.inf, 'd')
-        i = 0  # column number of gamma matrix
-        chunk = 0  # keeps track of on-line viterbi window location
-        step = self.window//3  # Threshold to trigger next chunk
+        i = 0
+        chunk = 0
+        step = self.window//3  # Threshold to trigger next chunk.
         conversion_rate = None
         counter = []  # This keeps track of state durations, d
 
-        # Get the first audio frame and check not None
         frame = self.get_next_frame(increment_d=False)
         if frame is None:
             self.follower_output_queue.put(None)
             return
 
-        # Start at state 0
-        lml = -helper.stable_nlml(self.time_samples, frame, M=self.M, normalised=False,
-                                  f=self.score[0], T=self.T, v=self.v, cov_dict=self.cov_dict)
+        lml = -stable_nlml(self.time_samples, frame, M=self.M,
+                           f=self.score[0], T=self.T, v=self.v, cov_dict=self.cov_dict)
         lml_scaled = np.sign(lml) * np.abs(lml)**self.scale_factor
         gamma[0, 0] = lml_scaled
 
@@ -114,24 +104,14 @@ class Viterbi:
             if frame is None:
                 self.follower_output_queue.put(None)
                 return
-            print("my frame number! ", self.frame_no, flush=True)
 
-            # Lengthen gamma matrix if needed
-            # if i >= gamma.shape[1]:
-            #     desired_len = int(i * 1.5)
-            #     columns_to_add = desired_len - gamma.shape[1]
-            #     gamma = np.append(gamma, np.full(
-            #         (len(self.score), columns_to_add), -np.inf, 'd'))
-
+            # If we need to increase the tabulation matrix
             if i >= gamma.shape[1]:
                 desired_len = int(i * 1.5)
                 columns_to_add = desired_len - gamma.shape[1]
 
-                # Create a new array filled with -np.inf that matches the number of rows in gamma
                 new_columns = np.full(
                     (gamma.shape[0], columns_to_add), -np.inf, 'd')
-
-                # Append the new columns to gamma on axis 1 (column-wise)
                 gamma = np.append(gamma, new_columns, axis=1)
 
             # Re-calculate transmission probabilities if taking into account state duration models
@@ -144,13 +124,12 @@ class Viterbi:
                     [q**z * p for z in range(1, self.d+1)])
                 self_transition = np.log(1 - advance_transition)
                 advance_transition = np.log(advance_transition)
-                print("self ", self_transition, "advance ", advance_transition)
 
             # Iterate through states in window
             k0_index = chunk * step
             for k in range(k0_index, k0_index + self.window):
-                lml = -helper.stable_nlml(self.time_samples, frame, M=self.M, normalised=False,
-                                          f=self.score[k], T=self.T, v=self.v, cov_dict=self.cov_dict)
+                lml = -stable_nlml(self.time_samples, frame, M=self.M,
+                                   f=self.score[k], T=self.T, v=self.v, cov_dict=self.cov_dict)
                 lml_scaled = np.sign(lml) * np.abs(lml)**self.scale_factor
                 print("k: ", k, "lml: ", lml, "lml_scaled: ", lml_scaled)
 
@@ -162,29 +141,26 @@ class Viterbi:
                     [same_state, advance_state])
 
             # Determine most likely state
-            print("gamma is ", gamma[k0_index:k0_index+self.window, i])
+            print("max_s is ", gamma[k0_index:k0_index+self.window, i])
             new_s = np.argmax(gamma[:, i])
 
             # If required, update state duration d
             if self.state_duration_model:
                 if new_s == self.max_s:
-                    self.d += 1  # If still in same state, keep d the same
+                    self.d += 1
                 else:
                     counter.append(self.d)
-                    print("counter is ", counter)
                     conversion_rates = 1000 * np.array(counter) / np.array(
                         self.time_to_next[:len(counter)])
                     # We take the running mean average
                     conversion_rate = np.mean(conversion_rates)
-                    print("conversion rate is ", conversion_rate)
                     self.d = 1
 
             self.max_s = new_s
 
-            # Print to outut queue
             print(self.max_s, flush=True)
             self.follower_output_queue.put(
-                (self.max_s, self.score_times[self.max_s]))  # also returning score times for legacy reasons TODO: delete at end of project
+                (self.max_s, self.score_times[self.max_s]))  # Also returning score times for legacy reasons
 
             # Update chunk
             if self.max_s >= k0_index + self.window - step:
@@ -199,14 +175,18 @@ class Viterbi:
         self.frame_no += 1
         sum = np.sum(np.array(frame, dtype=np.int64)**2)
         # sum = np.sum(np.array(frame)**2)  # for mode 2
+
         while sum < self.threshold:
             self.frame_no += 1
+
             if increment_d:
                 self.d += 1
+
             self.__log(f"Amplitude too small, moving onto next audio frame")
             frame = self.audio_frames_queue.get()
             sum = np.sum(np.array(frame, dtype=np.int64)**2)
             # sum = np.sum(np.array(frame)**2)
+
         return frame
 
     def __log(self, msg: str):

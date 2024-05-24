@@ -1,18 +1,17 @@
 from typing import List
 from lib.sharedtypes import NoteInfo
-# from sharedtypes import NoteInfo
 import mido
 from itertools import chain
 import numpy as np
 import matplotlib.pyplot as plt
 from collections import defaultdict
-import GP_models.helper
 
 
 def process_midi_to_note_info(midi_path: str) -> List[NoteInfo]:
     """
-    Function to process a MIDI file into a notes vs time format
+    Function to process a MIDI file into a notes vs time format.
     """
+
     mid = mido.MidiFile(midi_path)
     ret = process_MidiFile(mid)
 
@@ -21,28 +20,25 @@ def process_midi_to_note_info(midi_path: str) -> List[NoteInfo]:
 
 def dict_to_frequency_list(chords: dict) -> list:
     """
-    TODO note: No longer deleting repeats here, instead in dictionary generation. This is only an option as well. 
-    This was done so that using the score renderer it wouldn't create gaps. 
-    Also should be ok once adding time information for the HMMs.
+    Function to convert dictionary into a list of states.
     """
+
     sorted_time_keys = sorted(chords.keys(), reverse=False)
     time_to_next = [(sorted_time_keys[i+1] - sorted_time_keys[i])
                     for i in range(len(sorted_time_keys)-1)]
     score = [chords[key] for key in sorted_time_keys]
     score_times = np.cumsum(time_to_next)/1000
     score_times = np.insert(score_times, 0, 0)
+
     return score, time_to_next, score_times
-    # score_no_repeats = [score[0]]
-    # for sublist in score[1:]:
-    #     if sublist != score_no_repeats[-1]:
-    #         score_no_repeats.append(sublist)
-    # return score_no_repeats
 
 
 def notes_to_chords(notes: List[NoteInfo], sustain: bool = False, remove_repeats: bool = False) -> dict:
     """
-    Returns a dictionary with keys as the onset times and a list of frequencies as the values (e.g. chords or individual notes)
+    Function that returns a dictionary with keys as the onset times and a list of
+    frequencies as the values (e.g. chords or individual notes).
     """
+
     notes.sort(key=lambda x: x.note_start)
     grouped_notes = defaultdict(list)
     active_notes = set()
@@ -64,17 +60,22 @@ def notes_to_chords(notes: List[NoteInfo], sustain: bool = False, remove_repeats
                 grouped_notes[note_start_time] = [active_note[1]
                                                   for active_note in active_notes]
             else:
-                # Else we just need to add the current note (don't want to duplicate active notes)
+                # We just need to add the current note (don't want to duplicate active notes)
                 grouped_notes[note_start_time].append(note_frequency)
         else:
             if note_frequency not in grouped_notes[note_start_time]:
                 grouped_notes[note_start_time].append(note_frequency)
     if remove_repeats:
         grouped_notes = remove_repeated_chords_from_dict(grouped_notes)
+
     return grouped_notes
 
 
 def remove_repeated_chords_from_dict(grouped_notes: dict):
+    """
+    Function to remove repeated states/notes. 
+    """
+
     keys_to_remove = []
     prev_value = None
 
@@ -90,6 +91,10 @@ def remove_repeated_chords_from_dict(grouped_notes: dict):
 
 
 def process_MidiFile(mid: mido.MidiFile) -> List[NoteInfo]:
+    """
+    Function which prepares the midi file, extracting note starts.
+    """
+
     tempo = get_tempo(mid.tracks[0])
     track_midi_note_info_ticks: List[List[NoteInfo]] = [
         process_track(track, mid.ticks_per_beat, tempo) for track in mid.tracks
@@ -113,12 +118,14 @@ def process_track(
 ) -> List[NoteInfo]:
     """
     Args:
-        track: a mido.MidiTrack
-        ticks_per_beat: integer of the set ticks per beat 
-        tempo: integer of tempo in mido format
+        track: a mido.MidiTrack.
+        ticks_per_beat: integer of the set ticks per beat. 
+        tempo: integer of tempo in mido format. 
+
     Returns:
-        list of NoteInfo clases, which contain midi_not_number and note_start times
+        List of NoteInfo clases, which contain midi_note_number, note_start times and note_end times.
     """
+
     ret: List[NoteInfo] = []
     active_notes = {}  # Dictionary to track active notes
     curr_tick = 0
@@ -165,17 +172,21 @@ def process_track(
     return ret
 
 
-def plot_piece(chords: dict, num_it: int):
-    # Plot each set of values corresponding to time key for the first 50 items
-    for i, (time, frequencies) in enumerate(chords.items()):
+def plot_piece(states: dict, num_it: int):
+    """
+    Helper function to plot a piece for visualisation of states.
+    """
+
+    for i, (time, frequencies) in enumerate(states.items()):
         plt.scatter([time] * len(frequencies), frequencies,
                     label=str(time), marker='x')
         if i == num_it:  # Stop after plotting the first 50 items
             break
+
     # Add labels and title
     plt.xlabel('Time')
-    # Set y-axis to a logarithmic scale
     plt.yscale('log')
     plt.ylabel('Frequency')
     plt.title('Frequency vs Time')
+
     return

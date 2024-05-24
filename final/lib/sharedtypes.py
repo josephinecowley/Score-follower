@@ -1,4 +1,4 @@
-from typing import Callable, Literal, NewType, Tuple, Optional, Union, Dict, List
+from typing import Literal, NewType, Optional
 from dataclasses import dataclass
 import numpy as np
 import multiprocessing as mp
@@ -6,10 +6,10 @@ import multiprocessing as mp
 
 @dataclass
 class NoteInfo:
-    midi_note_num: int  # MIDI note number
-    note_start: float  # note start time (ms)
-    note_end: float = None  # note end time (ms)
-    note_duration: float = None  # Note duration
+    midi_note_num: int
+    note_start: float
+    note_end: float = None
+    note_duration: float = None
 
     def __eq__(self, other):
         if not isinstance(other, NoteInfo):
@@ -26,7 +26,7 @@ class NoteInfo:
         return hash((self.midi_note_num, self.note_start, self.note_end, self.note_duration))
 
 
-AudioFrame = NewType("AudioFrame", np.ndarray)  # type: ignore
+AudioFrame = NewType("AudioFrame", np.ndarray)
 AudioFrameQueue = NewType(
     "AudioFrameQueue", "mp.Queue[Optional[AudioFrame]]"
 )
@@ -38,4 +38,5 @@ MultiprocessingConnection = NewType(
     "MultiprocessingConnection", "mp.connection.Connection"
 )
 
+# Legacy reasons we keep the option to change following modes.
 Mode = Literal["basic", "oltw", "viterbi"]
