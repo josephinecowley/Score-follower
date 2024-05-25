@@ -3,7 +3,6 @@ import matplotlib.pyplot as plt
 from scipy.fft import fft
 from scipy.fft import fftfreq
 from scipy.signal.windows import hann
-import scipy.io.wavfile as wavf
 import final.inharmonicity as inharmonicity
 
 
