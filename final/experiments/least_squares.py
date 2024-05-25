@@ -4,7 +4,7 @@ from scipy.fft import fft
 from scipy.fft import fftfreq
 from scipy.signal.windows import hann
 import scipy.io.wavfile as wavf
-import inharmonicity
+import final.inharmonicity as inharmonicity
 
 
 def psd(audio_samples: np.ndarray, sample_rate: int) -> np.ndarray:
