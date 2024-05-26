@@ -11,8 +11,8 @@ from lib.sharedtypes import Mode
 class Arguments(Tap):
 
     # Score follower
-    perf_wave_path: Optional[str] = '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/final/music-data/wav-files/bach_hymn.wav'
-    score_midi_path: Optional[str] = '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/final/music-data/midi-files/bach_hymn.midi'
+    perf_wave_path: Optional[str] = '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/final/music_data/wav_files/bach_hymn.wav'
+    score_midi_path: Optional[str] = '/Users/josephine/Documents/Engineering /Part IIB/Score alignment project/Score-follower/final/music_data/midi_files/bach_hymn.midi'
     sample_rate: int = const.DEFAULT_SAMPLE_RATE
     frame_length: int = const.DEFAULT_FRAME_LENGTH
     hop_length: int = const.DEFAULT_HOP_LENGTH
@@ -39,7 +39,7 @@ class Arguments(Tap):
     sustain: bool = False
 
     sleep_compensation: float = 0.0025
-    player_delay: float = 2.05  # The more laggy the computer is, use a larger this value
+    player_delay: float = 1.55  # The more laggy the computer is, use a larger this value
     play_performance_audio: bool = True
 
     def __log_and_exit(self, msg: str):
