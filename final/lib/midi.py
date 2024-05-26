@@ -1,5 +1,6 @@
 from typing import List
-from lib.sharedtypes import NoteInfo
+# from lib.sharedtypes import NoteInfo
+from sharedtypes import NoteInfo
 import mido
 from itertools import chain
 import numpy as np

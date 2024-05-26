@@ -185,13 +185,13 @@ def return_kernel_spectrum(f=[440], M=12, sigma_f=1/500000, show=False, max_freq
     for fundamental_frequency in tqdm(f):
         plt.axvline(x=fundamental_frequency, color='green', linestyle='--')
         if B is None:
-            closest_key = min(inharmonicity.B.keys(), key=lambda key: abs(
+            closest_key = min(GP_inharmonicity.B.keys(), key=lambda key: abs(
                 key - fundamental_frequency))
-            B = inharmonicity.B[closest_key]
+            B = GP_inharmonicity.B[closest_key]
         for m in tqdm(range(M)):
-            inharmonicity_const = np.sqrt((1 + B * (m+1)**2))
+            GP_inharmonicity_const = np.sqrt((1 + B * (m+1)**2))
             output += 1/(1 + (T*(m+1))**v) * return_gaussian(f_spectrum, fundamental_frequency *
-                                                             (m+1) * inharmonicity_const, sigma_f, max_freq=max_freq, no_samples=no_samples)
+                                                             (m+1) * GP_inharmonicity_const, sigma_f, max_freq=max_freq, no_samples=no_samples)
             vertical_lines.append(fundamental_frequency*(m+1))
     # Times by amplitude scalar
     output = amplitude * output
@@ -230,7 +230,7 @@ def SM_kernel(X1, X2, f: list = [440], M: int = 9, sigma_f: float = 0.005, w: li
         w: List of relative weights GP hyperparameter.
         T: Float for parameter of spectral envelope weights (E_m) GP hyperparameter.
         v: Float for parameter of spectral envelope weights (E_m) GP hyperparameter.
-        B: Dictionary of inharmonicity constants GP hyperparameter.
+        B: Dictionary of GP_inharmonicity constants GP hyperparameter.
 
     Returns:
         Covariance matrix (K).
@@ -254,12 +254,12 @@ def SM_kernel(X1, X2, f: list = [440], M: int = 9, sigma_f: float = 0.005, w: li
 
     for i, fundamental_frequency in enumerate(f):
         if B is None:
-            closest_key = min(inharmonicity.B.keys(), key=lambda key: abs(
+            closest_key = min(GP_inharmonicity.B.keys(), key=lambda key: abs(
                 key - fundamental_frequency))
-            B = inharmonicity.B[closest_key]
+            B = GP_inharmonicity.B[closest_key]
         for m in range(M):
-            inharmonicity_const = np.sqrt((1 + B * (m+1)**2))
-            k_m = 2 * np.pi * inharmonicity_const * \
+            GP_inharmonicity_const = np.sqrt((1 + B * (m+1)**2))
+            k_m = 2 * np.pi * GP_inharmonicity_const * \
                 (m+1) * fundamental_frequency
             A = k_m * X1
             C = k_m * X2
@@ -325,7 +325,7 @@ def stable_nlml(x, y, f: list = [440], M: int = 9, sigma_f: float = 0.005, w: li
         w: List of relative weights GP hyperparameter.
         T: Float for parameter of spectral envelope weights (E_m) GP hyperparameter.
         v: Float for parameter of spectral envelope weights (E_m) GP hyperparameter.
-        B: Dictionary of inharmonicity constants GP hyperparameter.
+        B: Dictionary of GP_inharmonicity constants GP hyperparameter.
         sigma_n: Float for additive Gaussian noise GP hyperparameter.
 
         cov_dict: Dictionary of pre-calculated covariance matrices for states in a piece.
