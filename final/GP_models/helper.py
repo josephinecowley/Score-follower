@@ -1,17 +1,9 @@
 from __future__ import print_function
 
 import numpy as np
-import matplotlib.pyplot as plt
-import scipy.io.wavfile as wav
 from numpy.linalg import inv
 from numpy.linalg import cholesky, det
 from scipy.linalg import solve_triangular
-from scipy.optimize import golden
-from scipy.fft import fft
-from scipy.fft import fftfreq
-from scipy.signal.windows import hann, hamming
-import scipy.io.wavfile as wavf
-from tqdm import tqdm
 from . import inharmonicity
 
 
