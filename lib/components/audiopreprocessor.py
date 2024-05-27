@@ -1,15 +1,12 @@
-from ..mputils import write_list_to_queue
-
 from ..eprint import eprint
-from lib.sharedtypes import AudioFrame, AudioFrameQueue
-from typing import Callable, Optional, Dict, List, Union
+from lib.sharedtypes import AudioFrameQueue
+from typing import Optional
 import sounddevice as sd
 import multiprocessing as mp
-import librosa  # type: ignore
 import time
 import numpy as np
 import sys
-# import time
+import scipy.io.wavfile as wav
 
 
 class Slicer:
@@ -34,40 +31,31 @@ class Slicer:
         self.__log("Initialised successfully")
 
     def start(self):
-        if self.wave_path:  # If htere is a wave path, we will not do live return
+        if self.wave_path:
+            # When the score follower is running in Pre-recorded Mode
             self.__log("Starting using performance recording...")
-            audio_stream = librosa.stream(
-                path=self.wave_path,
-                block_length=1,
-                # TODO hop length parameter didn't seem to be working so this is a current fix
-                frame_length=self.hop_length,
-                hop_length=self.hop_length,
-                mono=True,
-                fill_value=0,
-                duration=self.max_duration,
-            )
+            sample_rate, data = wav.read(self.wave_path)
+            sample_indices = np.arange(0, len(data), self.hop_length)
+            audio_stream = [data[index:index+self.frame_length]
+                            for index in sample_indices]
 
-            # before starting, sleep for frame_length
             self.__sleep(
                 self.hop_length, time.perf_counter())
-            # self.frame_length, time.perf_counter() + 0.2)
-
             for audio_frame in audio_stream:
                 pre_sleep_time = time.perf_counter()
-                self.audio_frames_queue.put(audio_frame[:self.frame_length])
-                # sleep for hop length
+                self.audio_frames_queue.put(audio_frame)
                 self.__sleep(self.hop_length, pre_sleep_time)
 
-            self.audio_frames_queue.put(None)  # end
+            self.audio_frames_queue.put(None)
             self.__log("Finished")
 
         else:
-            # If live listening
+            # When the score follower is running in Live Mode
             self.__log("Starting to listen...")
             with sd.InputStream(callback=self.__callback, channels=1, samplerate=self.sample_rate, blocksize=self.hop_length):
                 sd.sleep(self.max_duration * 1000)
             self.__log("Finished: duration max timeout")
-            self.audio_frames_queue.put(None)  # end
+            self.audio_frames_queue.put(None)
 
     def __callback(self, indata, frames, time, status):
         if status:
@@ -97,7 +85,6 @@ class AudioPreprocessor:
         wave_path: Optional[str],
         sleep_compensation: float,
         audio_frames_queue: AudioFrameQueue,
-
     ):
         self.sample_rate = sample_rate
         self.hop_length = hop_length

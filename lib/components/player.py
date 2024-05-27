@@ -1,12 +1,12 @@
 from ..eprint import eprint
-from pydub import AudioSegment  # type: ignore
+from pydub import AudioSegment
 import time
-from pydub.playback import play  # type: ignore
+from pydub.playback import play
 
 
 class Player:
     """
-    Plays wave file
+    Plays .wav file. 
     """
 
     def __init__(self, wave_file_path: str, player_delay: float):
@@ -15,8 +15,8 @@ class Player:
         self.__log("Initialised successfully")
 
     def play(self):
-        # TODO make this the correct amount of time and set this as an argument/or time constant
-        time.sleep(self.player_delay)  # this is a compensation thing
+        # This is added to align player and score follower.
+        time.sleep(self.player_delay)
         play(self.wave)
 
     def __log(self, msg: str):

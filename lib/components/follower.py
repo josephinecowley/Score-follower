@@ -1,24 +1,20 @@
-from ..mputils import consume_queue, write_list_to_queue
 from lib.sharedtypes import (
-    AudioFrame,
     AudioFrameQueue,
     FollowerOutputQueue,
     Mode,
 )
 from ..eprint import eprint
 import numpy as np
-from lib.followers.basic import Basic
-from lib.followers.oltw import Oltw
+# from lib.followers.basic import Basic
+# from lib.followers.oltw import Oltw
 from lib.followers.viterbi import Viterbi
 
 
 class Follower:
     def __init__(
             self,
-            # output queue
             follower_output_queue: FollowerOutputQueue,
 
-            # Performance and Score info
             audio_frames_queue: AudioFrameQueue,
             frame_length: int,
             sample_rate: int,
@@ -35,7 +31,6 @@ class Follower:
             state_duration_model: bool,
             scale_factor: float,
 
-            # GP model
             T: float,
             v: float,
             M: int,
@@ -112,7 +107,7 @@ class Follower:
         )
         viterbi_follower.follow()
 
-    def start_basic(self):  # TODO rename basic to greedy
+    def start_basic(self):  # Legacy Basic greedy algorithm
         basic_follower = Basic(
             follower_output_queue=self.follower_output_queue,
             audio_frames_queue=self.audio_frames_queue,
@@ -129,7 +124,7 @@ class Follower:
         )
         basic_follower.follow()
 
-    def start_oltw(self):
+    def start_oltw(self):  # Legacy OLTW algorithm
         oltw_follower = Oltw(
             follower_output_queue=self.follower_output_queue,
             audio_frames_queue=self.audio_frames_queue,
