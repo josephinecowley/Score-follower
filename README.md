@@ -15,8 +15,8 @@ This repository contains the Score Follower application developed as part of a m
 ### Steps
 1. Download the adapted Flippy Qualitative Testbench in the Prerequisites section.
 2. Update the parameters and GP hyperparameters in the file `args.py`.
-4. Follow instructions in https://github.com/flippy-fyp/flippy-qualitative-testbench/blob/main/README.md to use the score renderer as an evaluation tool of this score follower.
-5. ```bash
+3. Follow instructions in https://github.com/flippy-fyp/flippy-qualitative-testbench/blob/main/README.md to use the score renderer as an evaluation tool of this score follower.
+4. ```bash
    python scorefollow.py
 
 Adjust the command with the appropriate flags or input parameters as needed for your specific setup.
@@ -29,5 +29,4 @@ Contributions to the Score Follower project are welcome. Please follow the steps
 4. Push to the branch (`git push origin feature/your_feature_name`).
 5. Create a new Pull Request.
 
-
-
+The architecture of `lib/` is based on [Flippy](https://github.com/flippy-fyp/flippy), though the implementation of each significant component is original. 
