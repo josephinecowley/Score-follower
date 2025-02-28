@@ -3,6 +3,9 @@
 ## Description
 This repository contains the Score Follower application developed as part of a master's project, published on arXiv at https://arxiv.org/abs/2502.10426. This product serves as a first application which uses Gaussian Processes to perform score following. 
 
+## Demonstration
+View demonstrations in the [results folder](results/).
+
 ## Installation
 - The score follower is designed for evaluation using the adapted score renderer app available here: https://github.com/josephinecowley/Score-follower.
 
