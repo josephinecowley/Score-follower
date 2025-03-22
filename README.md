@@ -1,13 +1,13 @@
-# Score Follower 
+# Score Follower
 
 ## Description
-This repository contains the Score Follower application developed as part of a master's project, published on arXiv at https://arxiv.org/abs/2502.10426. This product serves as a first application which uses Gaussian Processes to perform score following. 
+This repository contains the Score Follower application developed as part of a master's project. More details can be found in here https://arxiv.org/abs/2502.10426. This product serves as a first application which uses Gaussian Processes to perform score following. 
 
-## Demonstration
-View demonstrations in the [results folder](results/).
+## Example
+![Example Gif](./results/demo.gif)
 
 ## Installation
-- The score follower is designed for evaluation using the adapted score renderer app available here: https://github.com/josephinecowley/Score-follower.
+- The score follower is designed for evaluation using the score renderer app available here: https://github.com/flippy-fyp/flippy-qualitative-testbench.
 
 ### Prerequisites
 - A pre-recorded .wav file if running in Pre-recorded Mode.
@@ -19,8 +19,8 @@ View demonstrations in the [results folder](results/).
 1. Download the adapted Flippy Qualitative Testbench in the Prerequisites section.
 2. Update the parameters and GP hyperparameters in the file `args.py`.
 3. Follow instructions in https://github.com/flippy-fyp/flippy-qualitative-testbench/blob/main/README.md to use the score renderer as an evaluation tool of this score follower.
-4. ```bash
-   python scorefollow.py
+4. ```python scorefollow.py```
+   
 
 Adjust the command with the appropriate flags or input parameters as needed for your specific setup.
 
@@ -32,4 +32,4 @@ Contributions to the Score Follower project are welcome. Please follow the steps
 4. Push to the branch (`git push origin feature/your_feature_name`).
 5. Create a new Pull Request.
 
-The architecture of `lib/` is based on [Flippy](https://github.com/flippy-fyp/flippy), though the implementation of each significant component is original. 
+The architecture of `lib/` is based on [Flippy](https://github.com/flippy-fyp/flippy), though the implementation of each significant component is original.
