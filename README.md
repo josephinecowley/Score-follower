@@ -4,6 +4,14 @@
 This repository contains the Score Follower application developed as part of a master's project. More details can be found in here https://arxiv.org/abs/2502.10426. This product serves as a first application which uses Gaussian Processes to perform score following. 
 
 ## Example
+See these three video examples on Youtube: 
+
+https://www.youtube.com/watch?v=Y4p7vH8xzp8
+
+https://www.youtube.com/watch?v=Vv9OfG0qYCk
+
+https://www.youtube.com/watch?v=Vv9OfG0qYCk
+
 ![Example Gif](./results/demo.gif)
 
 ## Installation
